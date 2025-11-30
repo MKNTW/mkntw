@@ -1,54 +1,58 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body {
     height: 100%;
+    width: 100%;
     background: #000;
     overflow: hidden;
-    font-family: 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+    font-family: 'SF Pro Display', -apple-system, system-ui, sans-serif;
 }
 
 canvas {
     position: fixed;
     top: 0; left: 0;
-    width: 100%; height: 100%;
+    width: 100vw;
+    height: 100vh;
+    display: block;
 }
 
+/* Текст по центру на всех экранах */
 .content {
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     text-align: center;
+    width: 90%;
+    max-width: 1200px;
     z-index: 10;
     pointer-events: none;
 }
 
 h1 {
-    font-size: 7vw;
     font-weight: 900;
-    letter-spacing: -3px;
+    letter-spacing: -0.03em;
     line-height: 0.9;
 
+    /* Адаптивный размер шрифта */
+    font-size: 11vw;           /* на телефоне ~50–70px */
+    min-font-size: 32px;       /* минимум для очень маленьких экранов */
+
+    /* Радужный градиент как преломление через призму */
     background: linear-gradient(90deg,
-        #ff3366, #ff66aa, #aa33ff, #4488ff,
-        #00ffff, #00ffaa, #aaff33, #ffff33,
-        #ffaa33, #ff3366);
+        #ff3366, #ff66aa, #cc33ff, #4488ff,
+        #00ffff, #00ffaa, #aaff33, #ffff33, #ffaa33, #ff3366);
     background-size: 400% 400%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
 
-    animation: rainbowFlow 10s ease infinite;
+    animation: rainbow 12s ease infinite;
 }
 
-@keyframes rainbowFlow {
-    0%   { background-position: 0% 50%; }
-    50%  { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+@keyframes rainbow {
+    0%, 100% { background-position: 0% 50%; }
+    50%      { background-position: 100% 50%; }
 }
 
 .copyright {
@@ -56,12 +60,22 @@ h1 {
     bottom: 30px;
     left: 50%;
     transform: translateX(-50%);
-    color: rgba(255, 255, 255, 0.35);
-    font-size: 14px;
+    color: rgba(255, 255, 255, 255, 0.4);
+    font-size: clamp(12px, 2.5vw, 16px);
     letter-spacing: 1.5px;
     z-index: 10;
 }
 
-@media (max-width: 768px) {
-    h1 { font-size: 12vw; letter-spacing: -1px; }
+/* Улучшения для телефонов */
+@media (max-width: 480px) {
+    h1 {
+        font-size: 13vw;
+        letter-spacing: -0.02em;
+    }
+}
+
+@media (min-width: 1200px) {
+    h1 {
+        font-size: 120px;
+    }
 }
