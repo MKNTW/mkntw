@@ -10,7 +10,7 @@ body {
 header h1 {
     background: #007bff;
     color: white;
-    padding: 2rem;
+    padding: 1rem;
     margin: 0;
 }
 
@@ -29,7 +29,6 @@ header h1 {
 footer {
     background: #333;
     color: white;
-    padding: 1rem;
     position: fixed;
     bottom: 0;
     width: 100%;
