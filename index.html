@@ -3,117 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Cloud Platform</title>
-    <link rel="stylesheet" href="styles.css">
-    <script src="https://unpkg.com/three@0.168.0/build/three.min.js"></script>
-    <script src="https://unpkg.com/three@0.168.0/examples/js/postprocessing/EffectComposer.js"></script>
-    <script src="https://unpkg.com/three@0.168.0/examples/js/postprocessing/RenderPass.js"></script>
-    <script src="https://unpkg.com/three@0.168.0/examples/js/shaders/CopyShader.js"></script>
+    <title>AI Background</title>
+    <style>
+        * { margin: 0; padding: 0; }
+        html, body {
+            height: 100%;
+            background: #000;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+        canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .copyright {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.4);
+            font-size: 14px;
+            z-index: 10;
+        }
+    </style>
 </head>
 <body>
-    <canvas id="bg"></canvas>
 
-    <main>
-        <h1>Build and deploy on the AI Cloud.</h1>
-        <p>
-            Vercel provides the developer tools and cloud infrastructure to build, scale, 
-            and secure a faster, more personalized web.
-        </p>
+<canvas id="canvas"></canvas>
 
-        <div class="buttons">
-            <button class="btn-primary">Deploy</button>
-            <button class="btn-secondary">Get a Demo</button>
-        </div>
-    </main>
+<div class="copyright">© 2025 Все права защищены</div>
 
-    <footer>
-        <p>© 2025 Все права защищены</p>
-    </footer>
+<script src="https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.min.js"></script>
+<script>
+// ==== Настройка сцены ====
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-    <script>
-        // === Three.js сцена ===
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({
-            canvas: document.getElementById('bg'),
-            antialias: true,
-            alpha: true
-        });
-        renderer.setSize(innerWidth, innerHeight);
-        renderer.setPixelRatio(devicePixelRatio);
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 100);
+camera.position.z = 8;
 
-        camera.position.z = 9;
+// ==== Стеклянная призма с преломлением (как на твоём скриншоте) ====
+const tetra = new THREE.Mesh(
+    new THREE.TetrahedronGeometry(2.8, 0),
+    new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        metalness: 0,
+        roughness: 0,
+        transmission: 1,           // полностью прозрачная
+        thickness: 2.5,
+        clearcoat: 1,
+        clearcoatRoughness: 0,
+        ior: 1.46,                 // как настоящее стекло
+        envMapIntensity: 15,
+        side: THREE.DoubleSide
+    })
+);
+scene.add(tetra);
 
-        // === Стеклянная призма с преломлением (рефраクション) ===
-        const tetraGeometry = new THREE.TetrahedronGeometry(2.5, 0);
+// ==== Фон — чёрный космос + слабые линии (как у Vercel) ====
+scene.background = new THREE.Color(0x000000);
 
-        const tetraMaterial = new THREE.MeshPhysicalMaterial({
-            color: 0xffffff,
-            metalness: 0,
-            roughness: 0,
-            transmission: 1.0,        // прозрачность
-            thickness: 2.0,            // толщина для преломления
-            clearcoat: 1.0,
-            clearcoatRoughness: 0,
-            ior: 1.5,                  // индекс преломления (стекло)
-            envMapIntensity: 10,
-            side: THREE.DoubleSide
-        });
+// ==== Три мощных цветных луча (зелёный ↔ розовый ↔ голубой) ====
+const light1 = new THREE.PointLight(0x00ffaa, 6, 30);
+light1.position.set(-10, 0, 8);
+scene.add(light1);
 
-        const tetra = new THREE.Mesh(tetraGeometry, tetraMaterial);
-        scene.add(tetra);
+const light2 = new THREE.PointLight(0xff3388, 6, 30);
+light2.position.set(10, 0, 8);
+scene.add(light2);
 
-        // === Окружающая среда (чтобы было видно преломление) ===
-        const envTexture = new THREE.CubeTextureLoader().load([
-            'https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?w=800',
-            'https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?w=800',
-            'https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?w=800',
-            'https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?w=800',
-            'https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?w=800',
-            'https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?w=800'
-        ]);
-        scene.background = new THREE.Color(0x000000);
-        scene.environment = envTexture;
+const light3 = new THREE.PointLight(0x4488ff, 4, 30);
+light3.position.set(0, 8, 6);
+scene.add(light3);
 
-        // === Цветные лучи света (как на фото) ===
-        const light1 = new THREE.PointLight(0x00ff88, 4, 50); // зелёный
-        light1.position.set(-8, 3, 8);
-        scene.add(light1);
+// ==== Очень медленное вращение призмы (едва заметно) ====
+function animate() {
+    requestAnimationFrame(animate);
+    tetra.rotation.y += 0.003;
+    tetra.rotation.x += 0.0015;
+    renderer.render(scene, camera);
+}
+animate();
 
-        const light2 = new THREE.PointLight(0xff0066, 4, 50); // розовый
-        light2.position.set(8, -3, 8);
-        scene.add(light2);
-
-        const light3 = new THREE.PointLight(0x4488ff, 3, 50); // синий
-        light3.position.set(0, 8, 6);
-        scene.add(light3);
-
-        // === Анимация ===
-        function animate() {
-            requestAnimationFrame(animate);
-            tetra.rotation.x += 0.004;
-            tetra.rotation.y += 0.007;
-
-            // Движение источников света
-            const time = Date.now() * 0.001;
-            light1.position.x = Math.sin(time) * 10;
-            light1.position.y = Math.cos(time * 1.2) * 8;
-            light2.position.x = Math.cos(time * 0.8) * 12;
-            light2.position.y = Math.sin(time * 1.1) * 10;
-
-            renderer.render(scene, camera);
-        }
-        animate();
-
-        animate();
-
-        // === Адаптация под размер экрана ===
-        window.addEventListener('resize', () => {
-            camera.aspect = innerWidth / innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(innerWidth, innerHeight);
-        });
-    </script>
+// ==== Адаптация под размер экрана ====
+window.addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+});
+</script>
 </body>
 </html>
