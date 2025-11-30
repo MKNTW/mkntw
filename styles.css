@@ -34,3 +34,51 @@ footer {
     bottom: 0;
     width: 100%;
 }
+/* Стили для фона */
+#bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background: #000; /* Чёрный фон для градиента */
+}
+
+/* Общие стили для контраста на тёмном фоне */
+body {
+    background: transparent; /* Чтобы canvas был виден */
+    color: white;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+}
+
+header, main, footer {
+    position: relative;
+    z-index: 1; /* Контент поверх фона */
+}
+
+h1 {
+    color: #00ff88; /* Зелёный акцент */
+    text-align: center;
+}
+
+.welcome {
+    text-align: center;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.welcome-img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 255, 136, 0.3); /* Свечение как в Vercel */
+}
+
+footer {
+    text-align: center;
+    margin-top: 50px;
+    opacity: 0.8;
+}
