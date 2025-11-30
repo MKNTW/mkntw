@@ -1,4 +1,4 @@
-## Hi there 👋
+## ох аллах, саубол, котак!
 
 <!--
 **MKNTW/mkntw** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
