@@ -6,53 +6,65 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
 
-// Призма всегда в центре и адаптируется под размер экрана
-const prismSize = Math.min(window.innerWidth, window.innerHeight) * 0.45;
+// Динамический размер призмы
+function updatePrismSize() {
+    const size = Math.min(window.innerWidth, window.innerHeight) * 0.5;
+    return size / 100;
+}
 
-const prism = new THREE.Mesh(
-    new THREE.TetrahedronGeometry(prismSize / 100, 0),
+let prism = new THREE.Mesh(
+    new THREE.TetrahedronGeometry(updatePrismSize(), 0),
     new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0,
         roughness: 0,
         transmission: 1.0,
-        thickness: prismSize / 30,
+        thickness: 3.5,
         clearcoat: 1,
         clearcoatRoughness: 0,
-        ior: 1.5,
-        envMapIntensity: 20
+        ior: 1.52,
+        envMapIntensity: 25
     })
 );
 scene.add(prism);
 
-// Три цветных луча
-const lightPower = window.innerWidth < 768 ? 6 : 8;
-scene.add(new THREE.PointLight(0x00ffaa, lightPower, 50)).position.set(-15, 0, 10);
-scene.add(new THREE.PointLight(0xff3388, lightPower, 50)).position.set(15, 0, 10);
-scene.add(new THREE.PointLight(0x4488ff, lightPower * 0.8, 50)).position.set(0, 12, 8);
+// Цветные лучи
+const light1 = new THREE.PointLight(0x00ffaa, 9, 50);
+light1.position.set(-14, 0, 12);
+scene.add(light1);
 
-// Камера чуть дальше на маленьких экранах
-camera.position.z = window.innerWidth < 768 ? 10 : 8.5;
+const light2 = new THREE.PointLight(0xff3388, 9, 50);
+light2.position.set(14, 0, 12);
+scene.add(light2);
 
-// Анимация
+const light3 = new THREE.PointLight(0x4488ff, 6, 50);
+light3.position.set(0, 12, 10);
+scene.add(light3);
+
+// Камера подстраивается
+camera.position.z = window.innerWidth < 768 ? 11 : 9;
+
 function animate() {
     requestAnimationFrame(animate);
     prism.rotation.y += 0.003;
-    prism.rotation.x += 0.001;
+    prism.rotation.x += 0.0012;
     renderer.render(scene, camera);
 }
 animate();
 
-// Полная адаптация при изменении размера и ориентации
 window.addEventListener('resize', () => {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
 
-    camera.aspect = width / height;
+    camera.aspect = w / h;
     camera.updateProjectionMatrix();
-    renderer.setSize(width, height);
+    renderer.setSize(w, h);
 
-    // Пересчитываем размер призмы при повороте телефона
-    const newSize = Math.min(width, height) * 0.45;
-    prism.scale.setScalar(newSize / prismSize);
+    // Пересоздаём призму при сильном изменении размера
+    scene.remove(prism);
+    prism = new THREE.Mesh(
+        new THREE.TetrahedronGeometry(updatePrismSize(), 0),
+        prism.material
+    );
+    scene.add(prism);
 });
