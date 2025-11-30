@@ -3,29 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Background</title>
+    <title>#6medi[v**^mknt\w!&{ps;fp5+__<~</title>
     <style>
-        * { margin: 0; padding: 0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body {
             height: 100%;
             background: #000;
             overflow: hidden;
-            font-family: sans-serif;
+            font-family: 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
         }
         canvas {
             position: fixed;
             top: 0; left: 0;
-            width: 100%;
-            height: 100%;
+            width: 100%; height: 100%;
+        }
+        .content {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+        h1 {
+            font-size: 6.5vw;
+            font-weight: 900;
+            letter-spacing: -2px;
+            line-height: 1;
+            margin-bottom: 2rem;
+
+            /* РАДУЖНЫЙ ГРАДИЕНТ как преломлённый свет через призму */
+            background: linear-gradient(
+                90deg,
+                #ff0066,   /* розовый */
+                #ff00aa,
+                #aa00ff,   /* фиолетовый */
+                #4488ff,   /* синий */
+                #00ffff,   /* циан */
+                #00ff88,   /* зелёный */
+                #aaff00,   /* лайм */
+                #ffff00,   /* жёлтый */
+                #ff8800,   /* оранжевый */
+                #ff0066    /* назад в розовый */
+            );
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: rainbow 8s ease infinite;
+        }
+        @keyframes rainbow {
+            0%, 100%   { background-position: 0% 50%; }
+            50%        { background-position: 100% 50%; }
         }
         .copyright {
             position: fixed;
             bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            color: rgba(255,255,255,0.4);
+            color: rgba(255,255,255,0.35);
             font-size: 14px;
-            z-index: 10;
+            letter-spacing: 1px;
         }
     </style>
 </head>
@@ -33,69 +72,59 @@
 
 <canvas id="canvas"></canvas>
 
+<div class="content">
+    <h1>#6medi[v**^mknt\w!&{ps;fp5+__<~</h1>
+</div>
+
 <div class="copyright">© 2025 Все права защищены</div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.min.js"></script>
 <script>
-// ==== Настройка сцены ====
-const canvas = document.getElementById('canvas');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 100);
-camera.position.z = 8;
-
-// ==== Стеклянная призма с преломлением (как на твоём скриншоте) ====
-const tetra = new THREE.Mesh(
-    new THREE.TetrahedronGeometry(2.8, 0),
-    new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        metalness: 0,
-        roughness: 0,
-        transmission: 1,           // полностью прозрачная
-        thickness: 2.5,
-        clearcoat: 1,
-        clearcoatRoughness: 0,
-        ior: 1.46,                 // как настоящее стекло
-        envMapIntensity: 15,
-        side: THREE.DoubleSide
-    })
-);
-scene.add(tetra);
-
-// ==== Фон — чёрный космос + слабые линии (как у Vercel) ====
-scene.background = new THREE.Color(0x000000);
-
-// ==== Три мощных цветных луча (зелёный ↔ розовый ↔ голубой) ====
-const light1 = new THREE.PointLight(0x00ffaa, 6, 30);
-light1.position.set(-10, 0, 8);
-scene.add(light1);
-
-const light2 = new THREE.PointLight(0xff3388, 6, 30);
-light2.position.set(10, 0, 8);
-scene.add(light2);
-
-const light3 = new THREE.PointLight(0x4488ff, 4, 30);
-light3.position.set(0, 8, 6);
-scene.add(light3);
-
-// ==== Очень медленное вращение призмы (едва заметно) ====
-function animate() {
-    requestAnimationFrame(animate);
-    tetra.rotation.y += 0.003;
-    tetra.rotation.x += 0.0015;
-    renderer.render(scene, camera);
-}
-animate();
-
-// ==== Адаптация под размер экрана ====
-window.addEventListener('resize', () => {
-    camera.aspect = innerWidth / innerHeight;
-    camera.updateProjectionMatrix();
+    const canvas = document.getElementById('canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     renderer.setSize(innerWidth, innerHeight);
-});
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 100);
+    camera.position.z = 8;
+
+    // Стеклянная призма (точно как на твоём скриншоте)
+    const prism = new THREE.Mesh(
+        new THREE.TetrahedronGeometry(2.9, 0),
+        new THREE.MeshPhysicalMaterial({
+            color: 0xffffff,
+            metalness: 0,
+            roughness: 0,
+            transmission: 1.0,
+            thickness: 3,
+            clearcoat: 1,
+            clearcoatRoughness: 0,
+            ior: 1.5,
+            envMapIntensity: 20
+        })
+    );
+    scene.add(prism);
+
+    // Три цветных луча — именно те цвета, что на скриншоте
+    scene.add(new THREE.PointLight(0x00ffaa, 7, 40)).position.set(-12, 0, 10);
+    scene.add(new THREE.PointLight(0xff3388, 7, 40)).position.set(12, 0, 10);
+    scene.add(new THREE.PointLight(0x4488ff, 5, 40)).position.set(0, 10, 8);
+
+    // Медленное вращение (можно убрать — просто закомментируй две строки ниже)
+    function animate() {
+        requestAnimationFrame(animate);
+        prism.rotation.y += 0.003;
+        prism.rotation.x += 0.001;
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(innerWidth, innerHeight);
+    });
 </script>
 </body>
 </html>
