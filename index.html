@@ -10,16 +10,22 @@
 
     <!-- Подключение иконки сайта (favicon) — положи картинку в корень или в папку img -->
     <link rel="icon" href="img/favicon.ico" type="image/x-icon">
+
+    <!-- Подключение Three.js для анимации (CDN) -->
+    <script src="https://unpkg.com/three@0.168.0/build/three.min.js"></script>
 </head>
 <body>
+    <!-- Фоновая анимация с красивой 3D-пирамидой и градиентом -->
+    <canvas id="bg"></canvas>
 
     <header>
-        <h1>#6mediv** mkntw!^ psfp5+__</!</h1>
+        <h1>#6mediv** mkntw!^ psfp5+__</h1>
     </header>
 
     <main>
         <section class="welcome">
-            <img src="https://www.google.com/search?vsrid=CKGe8dbTvtDWCBACGAEiJGQwOGFhNWM4LTg1MWYtNDMyOC1iZDE2LTVjOTZiNGU2OTY0YTIGIgJ3ZSgVONGS-K7DmpED&vsint=CAIqDAoCCAcSAggKGAEgATojChYNAAAAPxUAAAA_HQAAgD8lAACAPzABEOEBGOEBJQAAgD8&udm=26&lns_mode=un&source=lns.web.gsbubb&vsdim=225,225&gsessionid=8yYaCQbRXm2U45TOyFGuRuF47idvAqrS16EOy3pw5hhIcgNKvODhuw&lsessionid=HF7zIu2YFT_M2NYX-0JgRxhIGh8CLJ0F5_JRr1r7YSVB6EjfUwWETA&lns_surface=26&authuser=0&lns_vfs=e&qsubts=1764528088041&biw=1866&bih=955&hl=ru" alt="Приветственная картинка" class="welcome-img">
+            <!-- Старая img заменена на placeholder — добавь свою картинку, если нужно -->
+            <img src="https://via.placeholder.com/400x300/00ff88/ffffff?text=Твоя+Красивая+Картинка" alt="Красивая картинка" class="welcome-img">
             <p>Это стартовая страница вашего нового проекта. Удачи в разработке! 🚀</p>
         </section>
     </main>
@@ -27,6 +33,64 @@
     <footer>
         <p>© 2025 Все права защищены</p>
     </footer>
+
+    <!-- JavaScript для анимации фона -->
+    <script>
+        // Инициализация сцены Three.js
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ 
+            canvas: document.getElementById('bg'), 
+            antialias: true, 
+            alpha: true 
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+
+        // Пирамида (тетраэдр)
+        const geometry = new THREE.TetrahedronGeometry(3, 0);
+        const material = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.8
+        });
+        const tetra = new THREE.Mesh(geometry, material);
+        scene.add(tetra);
+
+        // Градиентные огни (свечение: зелёный, розовый, жёлтый)
+        const light1 = new THREE.PointLight(0x00ff88, 2, 100); // Зелёный
+        light1.position.set(-10, 0, 10);
+        scene.add(light1);
+
+        const light2 = new THREE.PointLight(0xff0088, 2, 100); // Розовый
+        light2.position.set(10, 0, 10);
+        scene.add(light2);
+
+        const light3 = new THREE.PointLight(0xffff00, 1.5, 100); // Жёлтый
+        light3.position.set(0, 10, 5);
+        scene.add(light3);
+
+        camera.position.z = 8;
+
+        // Анимация поворота
+        function animate() {
+            requestAnimationFrame(animate);
+            tetra.rotation.x += 0.005;
+            tetra.rotation.y += 0.008;
+            light1.position.x = Math.sin(Date.now() * 0.001) * 10;
+            light2.position.y = Math.cos(Date.now() * 0.0008) * 5;
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Адаптация под размер окна
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
 
     <!-- Подключение JavaScript файла (в конце body — лучшая практика) -->
     <script src="script.js"></script>
