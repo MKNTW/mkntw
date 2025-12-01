@@ -147,6 +147,7 @@
       color: white;
       padding: 2rem;
       text-align: center;
+      line-height: 1.6;
     }
     
     /* ANIMATIONS */
@@ -165,9 +166,9 @@
   <!-- WEBGL FALLBACK -->
   <div class="webgl-fallback" id="webgl-fallback">
     <div>
-      <h2>WebGL не поддерживается</h2>
-      <p>Для работы этого приложения требуется поддержка WebGL.</p>
-      <p>Пожалуйста, обновите браузер или проверьте настройки.</p>
+      <h2>Ошибка загрузки</h2>
+      <p>Не удалось загрузить необходимые библиотеки.</p>
+      <p>Проверьте интернет-соединение и обновите страницу.</p>
     </div>
   </div>
   
@@ -183,28 +184,140 @@
     <div class="footer-line"></div>
     <p>© 2025 · All rights reserved</p>
   </div>
-  
-  <!-- THREE.JS -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.min.js"></script>
-  
+
   <script>
     'use strict';
+    
+    // Список CDN для Three.js (пробуем все по очереди)
+    const THREE_CDNS = [
+      'https://cdnjs.cloudflare.com/ajax/libs/three.js/r164/three.min.js',
+      'https://unpkg.com/three@0.164.0/build/three.min.js',
+      'https://cdn.jsdelivr.net/npm/three@0.164.0/build/three.min.js',
+      'https://fastly.jsdelivr.net/npm/three@0.164.0/build/three.min.js'
+    ];
+    
+    let THREE = null;
+    let currentCDNIndex = 0;
+    
+    // Функция загрузки скрипта с CDN
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.crossOrigin = 'anonymous';
+        
+        script.onload = () => {
+          console.log('Three.js загружен с:', src);
+          THREE = window.THREE;
+          resolve();
+        };
+        
+        script.onerror = () => {
+          console.warn('Не удалось загрузить с:', src);
+          reject();
+        };
+        
+        document.head.appendChild(script);
+      });
+    }
+    
+    // Попытка загрузки со всех CDN по очереди
+    async function loadThreeJS() {
+      for (let i = currentCDNIndex; i < THREE_CDNS.length; i++) {
+        try {
+          await loadScript(THREE_CDNS[i]);
+          return true;
+        } catch (error) {
+          console.warn(`CDN ${i} не сработал, пробуем следующий...`);
+          currentCDNIndex++;
+        }
+      }
+      return false;
+    }
     
     // Проверка WebGL
     function checkWebGL() {
       try {
         const canvas = document.createElement('canvas');
-        return !!(window.WebGLRenderingContext && 
-          (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        return !!gl;
       } catch (e) {
         return false;
       }
     }
     
-    // Упрощенная инициализация
+    // Основная функция инициализации
+    async function initializeApp() {
+      const loader = document.getElementById('loader');
+      const fallback = document.getElementById('webgl-fallback');
+      
+      // Проверка WebGL
+      if (!checkWebGL()) {
+        loader.style.display = 'none';
+        fallback.innerHTML = `
+          <div>
+            <h2>WebGL не поддерживается</h2>
+            <p>Ваш браузер или устройство не поддерживают WebGL.</p>
+            <p>Попробуйте обновить браузер или используйте другое устройство.</p>
+          </div>
+        `;
+        fallback.style.display = 'grid';
+        return;
+      }
+      
+      // Пробуем загрузить Three.js
+      try {
+        console.log('Пытаемся загрузить Three.js...');
+        const threeLoaded = await loadThreeJS();
+        
+        if (!threeLoaded || !window.THREE) {
+          throw new Error('Не удалось загрузить Three.js со всех CDN');
+        }
+        
+        // Инициализируем сцену после успешной загрузки
+        initScene();
+        
+        // Скрываем лоадер с небольшой задержкой для плавности
+        setTimeout(() => {
+          loader.style.opacity = '0';
+          setTimeout(() => {
+            loader.style.display = 'none';
+          }, 500);
+        }, 300);
+        
+      } catch (error) {
+        console.error('Ошибка инициализации:', error);
+        
+        loader.style.display = 'none';
+        fallback.innerHTML = `
+          <div>
+            <h2>Ошибка загрузки</h2>
+            <p>Не удалось загрузить необходимые библиотеки.</p>
+            <p>Проверьте интернет-соединение и обновите страницу.</p>
+            <p style="margin-top: 20px; font-size: 14px; opacity: 0.7">
+              Ошибка: ${error.message}
+            </p>
+          </div>
+        `;
+        fallback.style.display = 'grid';
+      }
+      
+      // Фейлсейф: скрыть лоадер через 10 секунд
+      setTimeout(() => {
+        if (loader.style.display !== 'none') {
+          loader.style.opacity = '0';
+          setTimeout(() => {
+            loader.style.display = 'none';
+          }, 500);
+        }
+      }, 10000);
+    }
+    
+    // Функция инициализации 3D сцены
     function initScene() {
-      // Создаем сцену
       const canvas = document.getElementById('canvas');
+      
+      // Создаем рендерер
       const renderer = new THREE.WebGLRenderer({
         canvas,
         antialias: true,
@@ -218,20 +331,28 @@
       renderer.toneMappingExposure = 1.9;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       
+      // Создаем сцену и камеру
       const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(56, window.innerWidth / window.innerHeight, 0.1, 100);
+      const camera = new THREE.PerspectiveCamera(
+        56,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        100
+      );
       camera.position.z = window.innerWidth < 768 ? 14 : 11.5;
       
-      // Создаем окружение
+      // Создаем окружение из canvas (работает оффлайн)
       const envCanvas = document.createElement('canvas');
       envCanvas.width = envCanvas.height = 1024;
       const ctx = envCanvas.getContext('2d');
+      
       const grad = ctx.createRadialGradient(512, 512, 0, 512, 512, 512);
       grad.addColorStop(0, '#ffffff');
       grad.addColorStop(0.2, '#aaffff');
       grad.addColorStop(0.5, '#ff88ff');
       grad.addColorStop(0.8, '#88aaff');
       grad.addColorStop(1, '#000814');
+      
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, 1024, 1024);
       
@@ -240,7 +361,7 @@
       scene.environment = envTexture;
       scene.background = new THREE.Color(0x000000);
       
-      // Создаем призму
+      // Создаем жидкую призму
       const size = Math.min(window.innerWidth, window.innerHeight) * 0.52;
       const prism = new THREE.Mesh(
         new THREE.TetrahedronGeometry(size / 100, 0),
@@ -274,24 +395,27 @@
         scene.add(light);
       });
       
-      // Пасхалка
+      // Пасхалка: 3 клика/тапа
       let taps = 0;
       let lastTap = 0;
-      document.addEventListener('click', (e) => {
-        // Игнорируем клики в элементы, которые не canvas (кроме пасхалки)
-        if (e.target.id !== 'easter' && e.target.tagName !== 'CANVAS') return;
+      
+      canvas.addEventListener('click', (e) => {
+        e.preventDefault();
         
         const currentTime = Date.now();
-        if (currentTime - lastTap < 500) {
+        const timeDiff = currentTime - lastTap;
+        
+        if (timeDiff < 500 && timeDiff > 0) {
           taps++;
         } else {
           taps = 1;
         }
+        
         lastTap = currentTime;
         
         if (taps === 3) {
           const easter = document.getElementById('easter');
-          easter.classList.toggle('show');
+          easter.classList.add('show');
           taps = 0;
           
           // Автоскрытие через 3 секунды
@@ -301,8 +425,35 @@
         }
       });
       
+      // Также обрабатываем touch события для мобильных
+      canvas.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        
+        const currentTime = Date.now();
+        const timeDiff = currentTime - lastTap;
+        
+        if (timeDiff < 500 && timeDiff > 0) {
+          taps++;
+        } else {
+          taps = 1;
+        }
+        
+        lastTap = currentTime;
+        
+        if (taps === 3) {
+          const easter = document.getElementById('easter');
+          easter.classList.add('show');
+          taps = 0;
+          
+          setTimeout(() => {
+            easter.classList.remove('show');
+          }, 3000);
+        }
+      }, { passive: false });
+      
       // Анимация
       const clock = new THREE.Clock();
+      
       function animate() {
         requestAnimationFrame(animate);
         const t = clock.getElapsedTime();
@@ -313,91 +464,55 @@
         renderer.render(scene, camera);
       }
       
-      // Запускаем анимацию и скрываем лоадер
       animate();
       
-      // Скрываем лоадер сразу после успешной инициализации
-      setTimeout(() => {
-        const loader = document.getElementById('loader');
-        loader.style.opacity = '0';
-        setTimeout(() => {
-          loader.style.display = 'none';
-        }, 500);
-      }, 300);
-      
-      // Обработка ресайза
+      // Обработка изменения размера окна
+      let resizeTimeout;
       window.addEventListener('resize', () => {
-        const w = window.innerWidth;
-        const h = window.innerHeight;
-        camera.aspect = w / h;
-        camera.updateProjectionMatrix();
-        renderer.setSize(w, h);
-        camera.position.z = w < 768 ? 14 : 11.5;
+        clearTimeout(resizeTimeout);
         
-        // Масштабируем призму
-        const newSize = Math.min(w, h) * 0.52;
-        prism.scale.setScalar(newSize / size);
+        resizeTimeout = setTimeout(() => {
+          const w = window.innerWidth;
+          const h = window.innerHeight;
+          
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+          renderer.setSize(w, h);
+          camera.position.z = w < 768 ? 14 : 11.5;
+          
+          // Масштабируем призму
+          const newSize = Math.min(w, h) * 0.52;
+          prism.scale.setScalar(newSize / size);
+        }, 100);
       });
       
-      // Возвращаем объекты для доступа
-      return { renderer, scene, camera, prism };
+      // Очистка ресурсов при закрытии
+      window.addEventListener('beforeunload', () => {
+        if (renderer) {
+          renderer.dispose();
+        }
+        if (envTexture) {
+          envTexture.dispose();
+        }
+        if (prism && prism.material) {
+          prism.material.dispose();
+        }
+        if (prism && prism.geometry) {
+          prism.geometry.dispose();
+        }
+      });
     }
     
-    // Инициализация при загрузке страницы
-    window.addEventListener('load', () => {
-      // Проверяем WebGL
-      if (!checkWebGL()) {
-        document.getElementById('loader').style.display = 'none';
-        document.getElementById('webgl-fallback').style.display = 'grid';
-        return;
-      }
-      
-      // Проверяем, загружен ли Three.js
-      if (typeof THREE === 'undefined') {
-        console.error('Three.js не загружен');
-        document.getElementById('loader').style.display = 'none';
-        document.getElementById('webgl-fallback').innerHTML = `
-          <div>
-            <h2>Ошибка загрузки</h2>
-            <p>Не удалось загрузить Three.js библиотеку.</p>
-            <p>Проверьте интернет-соединение.</p>
-          </div>
-        `;
-        document.getElementById('webgl-fallback').style.display = 'grid';
-        return;
-      }
-      
-      try {
-        // Пытаемся инициализировать сцену
-        initScene();
-      } catch (error) {
-        console.error('Ошибка инициализации:', error);
-        document.getElementById('loader').style.display = 'none';
-        document.getElementById('webgl-fallback').innerHTML = `
-          <div>
-            <h2>Ошибка инициализации</h2>
-            <p>${error.message}</p>
-            <p>Попробуйте обновить страницу.</p>
-          </div>
-        `;
-        document.getElementById('webgl-fallback').style.display = 'grid';
-      }
-      
-      // Фейлсейф: скрыть лоадер через 5 секунд в любом случае
-      setTimeout(() => {
-        const loader = document.getElementById('loader');
-        if (loader.style.display !== 'none') {
-          loader.style.opacity = '0';
-          setTimeout(() => {
-            loader.style.display = 'none';
-          }, 500);
-        }
-      }, 5000);
-    });
+    // Запускаем приложение при загрузке страницы
+    window.addEventListener('load', initializeApp);
     
-    // Показываем контент сразу, даже если Three.js еще грузится
+    // Также запускаем, если страница уже загружена
+    if (document.readyState === 'complete') {
+      initializeApp();
+    }
+    
+    // Показываем основной контент сразу (до загрузки Three.js)
     document.addEventListener('DOMContentLoaded', () => {
-      // Показываем основной контент сразу
       document.querySelector('.center').style.visibility = 'visible';
       document.querySelector('.footer').style.visibility = 'visible';
     });
