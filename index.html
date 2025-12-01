@@ -6,25 +6,71 @@
   <meta name="theme-color" content="#000000">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="Интерактивная 3D визуализация с жидкой призмой">
+  
+  <!-- Preload Three.js -->
+  <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.min.js" crossorigin>
+  
   <title>#6medi[v**^mknt\w!&{ps;fp5+__<~</title>
 
   <style>
+    /* RESET & BASE */
     * { margin:0; padding:0; box-sizing:border-box; }
     html, body {
-      width:100%; height:100%; background:#000; overflow:hidden;
+      width:100%; height:100%; 
+      background:#000; overflow:hidden;
       font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       color-scheme: dark;
+      position: relative;
     }
-    canvas { position:fixed; inset:0; display:block; }
-
+    
+    /* LOADER */
+    #loader {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 1000;
+      display: grid;
+      place-items: center;
+      transition: opacity 0.5s ease, visibility 0.5s ease;
+    }
+    #loader.hidden {
+      opacity: 0;
+      visibility: hidden;
+    }
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-top-color: #00ffff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* CANVAS */
+    canvas { 
+      position:fixed; 
+      inset:0; 
+      display:block; 
+      touch-action: none;
+    }
+    
+    /* MAIN CONTENT */
     .center {
-      position:fixed; inset:0; display:grid; place-items:center;
-      pointer-events:none; z-index:10;
-      padding: 8vmin 10vw; /* идеальные отступы слева/справа */
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+      z-index: 10;
+      padding: 8vmin 10vw;
     }
-
+    
     h1 {
       font-weight: 900;
       font-size: clamp(48px, 12.5vw, 190px);
@@ -41,14 +87,20 @@
       -webkit-text-fill-color: transparent;
       animation: flow 20s ease infinite;
       text-shadow: 0 0 60px rgba(100, 200, 255, 0.4);
+      will-change: transform;
     }
-
+    
+    /* EASTER EGG */
     #easter {
-      position:fixed; inset:0; display:grid; place-items:center;
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
       font-size: clamp(44px, 11.5vw, 140px);
       font-weight: 900;
       letter-spacing: -0.03em;
       background: linear-gradient(90deg, #00ffcc, #ff0088, #ccff00, #00ffcc);
+      background-size: 300% 300%;
       -webkit-background-clip: text;
       background-clip: text;
       -webkit-text-fill-color: transparent;
@@ -57,17 +109,30 @@
       z-index: 50;
       transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1);
       text-shadow: 0 0 80px rgba(0, 255, 200, 0.6);
+      animation: flow 8s ease infinite;
     }
-    #easter.show { opacity: 1; pointer-events: all; }
-
+    #easter.show { 
+      opacity: 1; 
+      pointer-events: all;
+    }
+    
+    /* FOOTER */
     .footer {
-      position:fixed; bottom:0; left:0; width:100%; text-align:center;
-      padding: 38px 20px; z-index:20; pointer-events:none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      padding: 38px 20px;
+      z-index: 20;
+      pointer-events: none;
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
+      background: linear-gradient(transparent, rgba(0, 0, 0, 0.3));
     }
     .footer-line {
-      width: 240px; height: 1px;
+      width: 240px;
+      height: 1px;
       background: linear-gradient(90deg, transparent, #ffffff77, transparent);
       margin: 0 auto 16px auto;
     }
@@ -78,139 +143,376 @@
       text-transform: uppercase;
       font-weight: 600;
     }
-
+    
+    /* WEBGL FALLBACK */
+    .webgl-fallback {
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      background: #000;
+      z-index: 100;
+      color: white;
+      padding: 2rem;
+      text-align: center;
+    }
+    
+    /* ANIMATIONS */
     @keyframes flow {
       0%, 100% { background-position: 0% 50%; }
-      50%      { background-position: 100% 50%; }
+      50% { background-position: 100% 50%; }
     }
   </style>
 </head>
 <body>
-
+  <!-- LOADER -->
+  <div id="loader">
+    <div class="spinner"></div>
+  </div>
+  
+  <!-- WEBGL FALLBACK -->
+  <div class="webgl-fallback" id="webgl-fallback">
+    <div>
+      <h2>WebGL не поддерживается</h2>
+      <p>Для работы этого приложения требуется поддержка WebGL.</p>
+      <p>Пожалуйста, обновите браузер или проверьте настройки.</p>
+    </div>
+  </div>
+  
+  <!-- MAIN CONTENT -->
   <canvas id="canvas"></canvas>
-
+  
   <div class="center">
     <h1 id="easter">сәүбүл котак, братан</h1>
     <h1>#6medi[v**^mknt\w!&{ps;fp5+__<~</h1>
   </div>
-
+  
   <div class="footer">
     <div class="footer-line"></div>
     <p>© 2025 · All rights reserved</p>
   </div>
-
-  <!-- Three.js (один файл — всё внутри) -->
+  
+  <!-- THREE.JS -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.min.js"></script>
+  
   <script>
     'use strict';
-
-    const canvas = document.getElementById('canvas');
-    const renderer = new THREE.WebGLRenderer({
-      canvas,
-      antialias: true,
-      alpha: true,
-      powerPreference: "high-performance"
-    });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.9;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(56, window.innerWidth / window.innerHeight, 0.1, 100);
-    camera.position.z = window.innerWidth < 768 ? 14 : 11.5;
-
-    // === СОБСТВЕННОЕ ЯРКОЕ ОКРУЖЕНИЕ (работает оффлайн) ===
-    const envCanvas = document.createElement('canvas');
-    envCanvas.width = envCanvas.height = 1024;
-    const ctx = envCanvas.getContext('2d');
-    const grad = ctx.createRadialGradient(512, 512, 0, 512, 512, 512);
-    grad.addColorStop(0, '#ffffff');
-    grad.addColorStop(0.2, '#aaffff');
-    grad.addColorStop(0.5, '#ff88ff');
-    grad.addColorStop(0.8, '#88aaff');
-    grad.addColorStop(1, '#000814');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 1024, 1024);
-
-    const envTexture = new THREE.CanvasTexture(envCanvas);
-    envTexture.mapping = THREE.EquirectangularReflectionMapping;
-    scene.environment = envTexture;
-    scene.background = new THREE.Color(0x000000);
-
-    // === ЖИДКАЯ ПРИЗМА — НЕВОЗМОЖНО НЕ УВИДЕТЬ ===
-    const size = Math.min(window.innerWidth, window.innerHeight) * 0.52;
-    const prism = new THREE.Mesh(
-      new THREE.TetrahedronGeometry(size / 100, 0),
-      new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        metalness: 0,
-        roughness: 0,
-        transmission: 0.985,
-        thickness: 5.5,
-        ior: 1.49,
-        clearcoat:  ```javascript
-        clearcoat: 1.0,
-        clearcoatRoughness: 0,
-        envMapIntensity: 22,
-        reflectivity: 1,
-        specularIntensity: 3.5,
-        emissive: new THREE.Color(0x0088ff),
-        emissiveIntensity: 0.8
-      })
-    );
-    scene.add(prism);
-
-    // === ЯРКИЕ ЦВЕТНЫЕ ЛУЧИ ===
-    const colors = [0x00ffff, 0xff0088, 0x88ff44];
-    colors.forEach((c, i) => {
-      const light = new THREE.PointLight(c, 28, 100);
-      light.position.set(
-        Math.sin(i * 2.4) * 24,
-        Math.cos(i * 2.4) * 14,
-        18
-      );
-      scene.add(light);
-    });
-
-    // === ПАСХАЛКА — 3 клика/тача ===
-    let taps = 0;
-    document.addEventListener('click', () => {
-      if (++taps === 3) {
-        document.getElementById('easter').classList.toggle('show');
-        taps = 0;
+    
+    // Проверка WebGL
+    function checkWebGL() {
+      try {
+        const canvas = document.createElement('canvas');
+        return !!(window.WebGLRenderingContext && 
+          (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+      } catch (e) {
+        return false;
+      }
+    }
+    
+    if (!checkWebGL()) {
+      document.getElementById('loader').style.display = 'none';
+      document.getElementById('webgl-fallback').style.display = 'grid';
+      throw new Error('WebGL not supported');
+    }
+    
+    class PrismScene {
+      constructor() {
+        this.canvas = document.getElementById('canvas');
+        this.clock = new THREE.Clock();
+        this.animationId = null;
+        this.tapCount = 0;
+        this.lastTap = 0;
+        this.resizeTimeout = null;
+        this.isDestroyed = false;
+        
+        this.init();
+        this.setupEvents();
+        this.animate();
+        
+        // Скрыть loader после загрузки
+        setTimeout(() => {
+          document.getElementById('loader').classList.add('hidden');
+        }, 300);
+      }
+      
+      init() {
+        this.initRenderer();
+        this.initScene();
+        this.createEnvironment();
+        this.createPrism();
+        this.createLights();
+      }
+      
+      initRenderer() {
+        this.renderer = new THREE.WebGLRenderer({
+          canvas: this.canvas,
+          antialias: true,
+          alpha: true,
+          powerPreference: "high-performance"
+        });
+        
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.9;
+        this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+        this.renderer.shadowMap.enabled = false;
+      }
+      
+      initScene() {
+        this.scene = new THREE.Scene();
+        
+        this.camera = new THREE.PerspectiveCamera(
+          56,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          1000
+        );
+        this.camera.position.z = window.innerWidth < 768 ? 14 : 11.5;
+      }
+      
+      createEnvironment() {
+        const envCanvas = document.createElement('canvas');
+        envCanvas.width = envCanvas.height = 1024;
+        const ctx = envCanvas.getContext('2d');
+        
+        const grad = ctx.createRadialGradient(512, 512, 0, 512, 512, 512);
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.2, '#aaffff');
+        grad.addColorStop(0.5, '#ff88ff');
+        grad.addColorStop(0.8, '#88aaff');
+        grad.addColorStop(1, '#000814');
+        
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 1024, 1024);
+        
+        this.envTexture = new THREE.CanvasTexture(envCanvas);
+        this.envTexture.mapping = THREE.EquirectangularReflectionMapping;
+        this.scene.environment = this.envTexture;
+        this.scene.background = new THREE.Color(0x000000);
+      }
+      
+      createPrism() {
+        const size = Math.min(window.innerWidth, window.innerHeight) * 0.0052;
+        
+        this.prismMaterial = new THREE.MeshPhysicalMaterial({
+          color: 0xffffff,
+          metalness: 0,
+          roughness: 0,
+          transmission: 0.985,
+          thickness: 5.5,
+          ior: 1.49,
+          clearcoat: 1.0,
+          clearcoatRoughness: 0,
+          envMapIntensity: 22,
+          reflectivity: 1,
+          specularIntensity: 3.5,
+          emissive: new THREE.Color(0x0088ff),
+          emissiveIntensity: 0.8,
+          precision: 'highp' // Для iOS Safari
+        });
+        
+        this.prism = new THREE.Mesh(
+          new THREE.TetrahedronGeometry(1, 0),
+          this.prismMaterial
+        );
+        
+        this.prism.scale.setScalar(size);
+        this.scene.add(this.prism);
+      }
+      
+      createLights() {
+        const colors = [0x00ffff, 0xff0088, 0x88ff44];
+        
+        this.lights = colors.map((c, i) => {
+          const light = new THREE.PointLight(c, 28, 100);
+          light.position.set(
+            Math.sin(i * 2.4) * 24,
+            Math.cos(i * 2.4) * 14,
+            18
+          );
+          this.scene.add(light);
+          return light;
+        });
+        
+        // Ambient light для равномерного освещения
+        const ambient = new THREE.AmbientLight(0x222222, 0.5);
+        this.scene.add(ambient);
+      }
+      
+      setupEvents() {
+        // Обработка пасхалки
+        const handleInteraction = () => {
+          const currentTime = Date.now();
+          const tapLength = currentTime - this.lastTap;
+          
+          if (tapLength < 500 && tapLength > 0) {
+            this.tapCount++;
+          } else {
+            this.tapCount = 1;
+          }
+          
+          this.lastTap = currentTime;
+          
+          if (this.tapCount === 3) {
+            const easter = document.getElementById('easter');
+            easter.classList.add('show');
+            this.tapCount = 0;
+            
+            // Автоскрытие через 3 секунды
+            setTimeout(() => {
+              easter.classList.remove('show');
+            }, 3000);
+          }
+        };
+        
+        this.canvas.addEventListener('click', handleInteraction);
+        this.canvas.addEventListener('touchend', (e) => {
+          e.preventDefault();
+          handleInteraction();
+        }, { passive: false });
+        
+        // Resize с debounce
+        window.addEventListener('resize', () => {
+          this.handleResize();
+        });
+        
+        // Cleanup при размонтировании
+        window.addEventListener('beforeunload', () => this.cleanup());
+        window.addEventListener('pagehide', () => this.cleanup());
+      }
+      
+      handleResize() {
+        clearTimeout(this.resizeTimeout);
+        
+        this.resizeTimeout = setTimeout(() => {
+          if (this.isDestroyed) return;
+          
+          const w = window.innerWidth;
+          const h = window.innerHeight;
+          
+          this.camera.aspect = w / h;
+          this.camera.updateProjectionMatrix();
+          this.renderer.setSize(w, h);
+          this.camera.position.z = w < 768 ? 14 : 11.5;
+          
+          // Масштабирование призмы вместо пересоздания
+          const scale = Math.min(w, h) * 0.0052;
+          this.prism.scale.setScalar(scale);
+        }, 100);
+      }
+      
+      animate() {
+        if (this.isDestroyed) return;
+        
+        this.animationId = requestAnimationFrame(() => this.animate());
+        
+        const delta = this.clock.getDelta();
+        const elapsed = this.clock.getElapsedTime();
+        
+        // Плавная анимация с delta time
+        this.prism.rotation.y += delta * 0.3;
+        this.prism.rotation.x += delta * 0.18;
+        
+        // Легкое пульсирование для эффекта "жидкости"
+        const pulse = Math.sin(elapsed * 0.5) * 0.05 + 1;
+        this.prism.scale.x = this.prism.scale.z = this.prism.scale.y * pulse;
+        
+        // Анимация света
+        this.lights.forEach((light, i) => {
+          light.position.x = Math.sin(elapsed * 0.5 + i * 2.4) * 24;
+          light.position.y = Math.cos(elapsed * 0.5 + i * 2.4) * 14;
+          light.intensity = 28 + Math.sin(elapsed * 2 + i) * 5;
+        });
+        
+        this.renderer.render(this.scene, this.camera);
+        
+        // Мониторинг FPS (только в dev)
+        if (window.location.hostname === 'localhost') {
+          this.monitorFPS();
+        }
+      }
+      
+      monitorFPS() {
+        if (!this.frameCount) this.frameCount = 0;
+        if (!this.lastFPSUpdate) this.lastFPSUpdate = performance.now();
+        
+        this.frameCount++;
+        const currentTime = performance.now();
+        
+        if (currentTime >= this.lastFPSUpdate + 1000) {
+          // console.log(`FPS: ${this.frameCount}`);
+          this.frameCount = 0;
+          this.lastFPSUpdate = currentTime;
+        }
+      }
+      
+      cleanup() {
+        this.isDestroyed = true;
+        
+        if (this.animationId) {
+          cancelAnimationFrame(this.animationId);
+          this.animationId = null;
+        }
+        
+        // Освобождение ресурсов Three.js
+        if (this.renderer) {
+          this.renderer.dispose();
+          this.renderer.forceContextLoss();
+          this.renderer.domElement = null;
+          this.renderer = null;
+        }
+        
+        if (this.envTexture) {
+          this.envTexture.dispose();
+        }
+        
+        if (this.prism) {
+          if (this.prism.geometry) {
+            this.prism.geometry.dispose();
+          }
+          if (this.prism.material) {
+            if (Array.isArray(this.prism.material)) {
+              this.prism.material.forEach(m => m.dispose());
+            } else {
+              this.prism.material.dispose();
+            }
+          }
+          this.scene.remove(this.prism);
+        }
+        
+        if (this.lights) {
+          this.lights.forEach(light => {
+            if (light.dispose) light.dispose();
+            this.scene.remove(light);
+          });
+        }
+        
+        if (this.scene) {
+          this.scene.clear();
+        }
+      }
+    }
+    
+    // Инициализация после загрузки страницы
+    let sceneInstance = null;
+    
+    window.addEventListener('load', () => {
+      if (checkWebGL()) {
+        sceneInstance = new PrismScene();
       }
     });
-
-    // === АНИМАЦИЯ ===
-    const clock = new THREE.Clock();
-    function animate() {
-      requestAnimationFrame(animate);
-      const t = clock.getElapsedTime();
-
-      prism.rotation.y = t * 0.3;
-      prism.rotation.x = t * 0.18;
-
-      renderer.render(scene, camera);
-    }
-    animate();
-
-    // === ИДЕАЛЬНЫЙ RESIZE ===
-    window.addEventListener('resize', () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
-      camera.position.z = w < 768 ? 14 : 11.5;
-
-      // Пересоздаём призму под новый размер
-      scene.remove(prism);
-      const newSize = Math.min(w, h) * 0.52;
-      prism.geometry = new THREE.TetrahedronGeometry(newSize / 100, 0);
-      scene.add(prism);
-    });
+    
+    // Экспорт для отладки
+    window.SceneInstance = {
+      getInstance: () => sceneInstance,
+      recreate: () => {
+        if (sceneInstance) {
+          sceneInstance.cleanup();
+        }
+        sceneInstance = new PrismScene();
+      }
+    };
   </script>
 </body>
 </html>
