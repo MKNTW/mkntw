@@ -13,7 +13,7 @@ canvas {
     inset: 0;
     width: 100%;
     height: 100%;
-    z-index: -1; /* ВАЖНО */
+    z-index: 1; /* ВАЖНО */
 }
 
 /* Заменяем старый .center и h1 на это: */
