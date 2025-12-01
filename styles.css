@@ -1,18 +1,31 @@
-* { margin: 0; padding: 0; box-sizing: border-box; }
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
 html, body {
-    height: 100%;
     width: 100%;
+    height: 100%;
     background: #000;
     overflow: hidden;
-    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
-    color-scheme: dark;
-    background-color: #000 !important;
+    font-family: 'SF Pro Display', -apple-system, sans-serif;
+    color-scheme: dark only;
+    -webkit-text-stroke: 0.5px transparent;
 }
 
-canvas { position: fixed; inset: 0; display: block; }
+/* ТОТАЛЬНЫЙ ЧЁРНЫЙ ФОН */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: -2;
+}
 
-/* Liquid Glass контейнер */
+canvas { 
+    position: fixed; 
+    inset: 0; 
+    display: block; 
+}
+
+/* Жидкое стекло для всего контента */
 .center {
     position: fixed;
     inset: 0;
@@ -20,73 +33,74 @@ canvas { position: fixed; inset: 0; display: block; }
     place-items: center;
     pointer-events: none;
     z-index: 10;
-    padding: 8vmin 10vw; /* ← КЛЮЧЕВЫЕ ОТСТУПЫ СЛЕВА И СПРАВА */
+    padding: 8vmin 11vw; /* идеальные отступы слева/справа */
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
 }
 
-/* Пасхалка */
+/* Пасхалка — появляется после 3 тачей */
 #easter {
     position: fixed;
     inset: 0;
     display: grid;
     place-items: center;
-    font-size: clamp(40px, 10vw, 110px);
+    font-size: clamp(42px, 11vw, 120px);
     font-weight: 900;
-    background: linear-gradient(90deg, #ff0, #f0f, #0ff, #0f0, #ff0);
+    letter-spacing: -0.02em;
+    background: linear-gradient(90deg, #ff0044, #ffaa00, #ccff00, #00ffaa, #00ffff, #aa00ff, #ff0044);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
     opacity: 0;
     pointer-events: none;
-    z-index: 30;
-    transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1);
-    text-shadow: 0 0 60px rgba(255,100,255,0.6);
+    z-index: 50;
+    transition: opacity 1s cubic-bezier(0.23, 1, 0.32, 1);
+    text-shadow: 0 0 60px rgba(255,255,255,0.4);
 }
-
 #easter.show { opacity: 1; pointer-events: all; }
 
-/* Главный заголовок — с защитой от вылезания */
+/* Главный заголовок — Liquid Glass текст */
 .main-title {
     font-weight: 900;
-    letter-spacing: -0.04em;
-    line-height: 0.92;
+    font-size: clamp(48px, 12.5vw, 180px);
+    letter-spacing: -0.05em;
+    line-height: 0.9;
     text-align: center;
-    font-size: clamp(44px, 11.5vw, 168px);
-    
     background: linear-gradient(90deg,
         #ff3366, #ff66aa, #cc33ff, #6677ff,
         #00ffff, #00ffaa, #88ff44, #ffff44,
         #ffaa33, #ff3366);
-    background-size: 600% 600%;
+    background-size: 700% 700%;
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    
-    animation: rainbow 18s ease infinite;
-    
-    /* Защита от переполнения */
-    max-width: 100%;
-    word-break: break-all;
-    hyphens: auto;
+    animation: flow 20s linear infinite;
+    position: relative;
 }
 
-/* Жидкое стекло для текста (лёгкий блик) */
-.main-title::before {
+/* Жидкий блик как в iOS 18 */
+.main-title::after {
     content: '';
     position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, 
-        rgba(255,255,255,0) 0%, 
-        rgba(255,255,255,0.12) 50%, 
-        rgba(255,255,255,0) 100%);
-    border-radius: 20px;
-    filter: blur(20px);
-    transform: translateY(-50%) scale(1.4);
+    inset: -50%;
+    background: linear-gradient(135deg,
+        transparent 30%,
+        rgba(255,255,255,0.18) 50%,
+        transparent 70%);
+    filter: blur(40px);
+    animation: liquid 12s ease-in-out infinite;
     pointer-events: none;
-    animation: liquidShine 8s ease-in-out infinite;
 }
 
-@keyframes rainbow { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
-@keyframes liquidShine { 0%,100%{transform:translateY(-50%) scale(1.4) rotate(0deg)} 50%{transform:translateY(-50%) scale(1.6) rotate(5deg)} }
+@keyframes flow {
+    0%,100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+@keyframes liquid {
+    0%   { transform: translate(0, 0) rotate(0deg); }
+    50%  { transform: translate(10%, -10%) rotate(3deg); }
+    100% { transform: translate(0, 0) rotate(0deg); }
+}
 
 .footer {
     position: fixed;
@@ -94,22 +108,23 @@ canvas { position: fixed; inset: 0; display: block; }
     left: 0;
     width: 100%;
     text-align: center;
-    padding: 32px 20px;
+    padding: 36px 20px;
     z-index: 20;
     pointer-events: none;
+    backdrop-filter: blur(10px);
 }
 
 .footer-line {
-    width: 200px;
+    width: 220px;
     height: 1px;
-    background: linear-gradient(90deg, transparent, #ffffff55, transparent);
+    background: linear-gradient(90deg, transparent, #ffffff66, transparent);
     margin: 0 auto 16px auto;
 }
 
 .footer p {
-    color: #ffffff66;
-    font-size: clamp(14px, 2.6vw, 16px);
-    letter-spacing: 3px;
+    color: #ffffff77;
+    font-size: clamp(14px, 2.8vw, 17px);
+    letter-spacing: 4px;
     text-transform: uppercase;
     font-weight: 600;
 }
