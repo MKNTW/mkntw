@@ -5,20 +5,7 @@ html, body {
     width: 100%;
     background: #000;
     overflow: hidden;
-    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    cursor: none;
-}
-
-.custom-cursor {
-    position: fixed;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(0, 255, 255, 0.3) 0%, transparent 70%);
-    pointer-events: none;
-    z-index: 9999;
-    mix-blend-mode: screen;
-    transition: transform 0.1s ease;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 canvas {
@@ -38,42 +25,65 @@ canvas {
     align-items: center;
     pointer-events: none;
     z-index: 10;
-    padding: 5vmin;
-    perspective: 1000px;
+    padding: 20px;
 }
 
 h1 {
     font-weight: 900;
-    font-size: clamp(38px, 10vw, 140px);
     text-align: center;
-    letter-spacing: -0.04em;
-    line-height: 0.92;
-    max-width: 96vw;
+    letter-spacing: -0.03em;
+    line-height: 0.9;
+    max-width: 95vw;
     word-break: break-word;
     text-transform: uppercase;
+    
     background: linear-gradient(90deg, 
-        #ff3366, #ff66aa, #cc33ff, #6677ff, 
-        #00ffff, #00ffaa, #88ff44, #ffff44, 
-        #ffaa33, #ff3366);
+        #ff3366, #ff6600, #ffff00, #00ff00, 
+        #00ffff, #0088ff, #6600ff, #ff00ff, 
+        #ff3366);
     background-size: 300% 300%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    animation: rainbow 8s ease infinite, float 6s ease-in-out infinite;
-    filter: drop-shadow(0 0 20px rgba(255, 51, 102, 0.3));
-    transform-style: preserve-3d;
+    animation: rainbow 10s ease infinite;
+    
+    /* Адаптивные размеры для всех устройств */
+    font-size: clamp(28px, 8vw, 120px);
+    
+    /* Оптимизация для iPhone */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
-h1::after {
-    content: '#6medi[v**^mknt\w!&{ps;fp5+__<~';
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    background: linear-gradient(90deg, #00ffff, transparent);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    z-index: -1;
-    opacity: 0.3;
+/* Адаптация заголовка для маленьких экранов */
+@media (max-width: 768px) and (orientation: portrait) {
+    h1 {
+        font-size: clamp(32px, 10vw, 80px);
+        letter-spacing: -0.02em;
+        line-height: 0.85;
+        padding: 0 15px;
+    }
+    
+    .center {
+        padding-top: 40%;
+    }
+}
+
+@media (max-width: 768px) and (orientation: landscape) {
+    h1 {
+        font-size: clamp(24px, 6vw, 60px);
+    }
+    
+    .center {
+        padding-top: 10%;
+    }
+}
+
+/* Планшеты */
+@media (min-width: 769px) and (max-width: 1024px) {
+    h1 {
+        font-size: clamp(40px, 7vw, 90px);
+    }
 }
 
 @keyframes rainbow {
@@ -81,105 +91,72 @@ h1::after {
     50% { background-position: 100% 50%; }
 }
 
-@keyframes float {
-    0%, 100% { transform: translateY(0) rotateX(5deg); }
-    50% { transform: translateY(-10px) rotateX(5deg); }
-}
-
-@keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.8; transform: scale(1.05); }
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: scale(0.9); }
-    to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes fadeOut {
-    from { opacity: 1; transform: scale(1); }
-    to { opacity: 0; transform: scale(0.9); }
-}
-
 .footer {
     position: fixed;
-    bottom: 0; left: 0; width: 100%;
+    bottom: 0; 
+    left: 0; 
+    width: 100%;
     text-align: center;
-    padding: 24px 20px;
+    padding: 20px;
     z-index: 20;
     pointer-events: none;
-    backdrop-filter: blur(10px);
-    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
-}
-
-.footer-line {
-    width: 200px;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, #ffffff66, transparent);
-    margin: 0 auto 15px auto;
-    animation: shimmer 3s infinite;
-}
-
-@keyframes shimmer {
-    0%, 100% { opacity: 0.5; }
-    50% { opacity: 1; }
 }
 
 .footer p {
-    color: #ffffff88;
-    font-size: clamp(13px, 2.5vw, 15px);
-    letter-spacing: 3px;
+    color: #ffffff44;
+    font-size: 14px;
+    letter-spacing: 1px;
     text-transform: uppercase;
-    font-weight: 500;
-    animation: glitch 5s infinite;
+    font-weight: 400;
+    
+    /* Адаптация для маленьких экранов */
+    font-size: clamp(12px, 2.5vw, 14px);
 }
 
-@keyframes glitch {
-    0%, 95% { transform: translate(0); }
-    96% { transform: translate(-2px, 1px); opacity: 0.8; }
-    97% { transform: translate(1px, -1px); opacity: 0.9; }
-    98% { transform: translate(-1px, 2px); }
+/* Адаптация футера для iPhone */
+@media (max-width: 768px) {
+    .footer {
+        padding: 15px;
+    }
+    
+    .footer p {
+        font-size: 12px;
+        letter-spacing: 0.5px;
+    }
 }
 
-/* Плавающие элементы фона */
-.bg-elements {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 1;
+/* Отключаем выделение текста на touch устройствах */
+.no-select {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
-.bg-element {
-    position: absolute;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-    animation: drift linear infinite;
+/* Улучшаем рендеринг для Safari/iPhone */
+@media (-webkit-min-device-pixel-ratio: 2) {
+    canvas {
+        image-rendering: -webkit-optimize-contrast;
+    }
 }
 
-@keyframes drift {
-    from { transform: translate(0) rotate(0); }
-    to { transform: translate(var(--tx), var(--ty)) rotate(360deg); }
+/* Плавные анимации */
+* {
+    -webkit-tap-highlight-color: transparent;
 }
 
-/* Инструкция */
-.instructions {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    color: rgba(255,255,255,0.6);
-    font-size: 12px;
-    text-align: right;
-    pointer-events: none;
-    z-index: 100;
+/* Оптимизация производительности для мобильных */
+@media (max-width: 768px) {
+    canvas {
+        will-change: transform;
+    }
 }
 
-.instructions span {
-    display: block;
-    margin-bottom: 5px;
-    animation: fadeInOut 4s infinite;
-}
-
-@keyframes fadeInOut {
-    0%, 100% { opacity: 0.3; }
-    50% { opacity: 1; }
+/* Ховер эффекты только для десктопов */
+@media (hover: hover) and (pointer: fine) {
+    canvas:hover {
+        cursor: pointer;
+    }
 }
