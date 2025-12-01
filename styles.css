@@ -15,15 +15,18 @@ canvas {
     height: 100%;
 }
 
-/* Центрирование контента */
+/* Заменяем старый .center и h1 на это: */
 .center {
     position: fixed;
     inset: 0;
-    display: grid;
-    place-items: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
     pointer-events: none;
     z-index: 10;
     padding: 5vmin;
+    gap: 2vmin;
 }
 
 h1 {
@@ -32,18 +35,17 @@ h1 {
     letter-spacing: -0.04em;
     line-height: 0.92;
 
-    /* Адаптивный размер — от 38px до 140px */
+    /* Теперь текст переносится и всегда влезает */
     font-size: clamp(38px, 10vw, 140px);
+    max-width: 96vw;
+    word-break: break-word;
+    hyphens: auto;
 
-    background: linear-gradient(90deg,
-        #ff3366, #ff66aa, #cc33ff, #6677ff,
-        #00ffff, #00ffaa, #88ff44, #ffff44ff,
-        #ffaa33, #ff3366);
+    background: linear-gradient(90deg, #ff3366, #ff66aa, #cc33ff, #6677ff, #00ffff, #00ffaa, #88ff44, #ffff44, #ffaa33, #ff3366);
     background-size: 500% 500%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-
     animation: rainbow 14s ease infinite;
 }
 
