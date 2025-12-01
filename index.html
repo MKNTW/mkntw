@@ -6,8 +6,7 @@
   <meta name="theme-color" content="#000000">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  
-  <!-- ВАЖНО: title без сырых < > -->
+
   <title>#6medi[v**^mknt\w!&{ps;fp5+__&lt;~</title>
 
   <style>
@@ -87,21 +86,54 @@
       50%      { background-position: 100% 50%; }
     }
 
-    .error {
-      position: fixed; inset: 0; display: grid; place-items: center;
-      background: #000; color: #fff; text-align: center;
-      padding: 20px; font-size: 18px; z-index: 100;
+    .loading-message {
+      position:fixed; inset:0; display:grid; place-items:center;
+      color:#fff; z-index:1000; background:#000;
+      font-size: 20px;
+      text-align: center;
     }
 
     .hidden-until-loaded { display:none; }
     .loaded .hidden-until-loaded { display:block; }
+
+    /* ---------- FALLBACK РЕЖИМ ---------- */
+    #fallback {
+      position:fixed;
+      inset:0;
+      display:grid;
+      place-items:center;
+      background: linear-gradient(140deg, #000000, #1a1a33, #000000);
+      background-size: 400% 400%;
+      animation: fallbackFlow 18s ease infinite;
+      z-index: 999;
+      text-align:center;
+      padding:20px;
+      color:#fff;
+      font-size: clamp(30px, 10vw, 80px);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      opacity:0;
+      pointer-events:none;
+      transition: opacity 0.6s ease;
+    }
+
+    @keyframes fallbackFlow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    #fallback.show {
+      opacity:1;
+      pointer-events:all;
+    }
   </style>
 </head>
 
 <body>
-  <div class="loading-message" style="position:fixed; inset:0; display:grid; place-items:center; color:#fff; z-index:1000; background:#000;">
-    Загрузка 3D-графики...
-  </div>
+  <div class="loading-message">Загрузка 3D-графики...</div>
+
+  <div id="fallback">#6medi[v**^mknt\w!&{ps;fp5+__&lt;~</div>
 
   <canvas id="canvas" class="hidden-until-loaded"></canvas>
 
@@ -118,6 +150,24 @@
   <script>
     'use strict';
 
+    // Проверка WebGL поддержки
+    function isWebGLSupported() {
+      try {
+        const canvas = document.createElement('canvas');
+        return !!(canvas.getContext('webgl') || canvas.getContext('experimental-webgl'));
+      } catch (e) {
+        return false;
+      }
+    }
+
+    const fallback = document.getElementById("fallback");
+
+    /** Если WebGL НЕ работает → включаем fallback **/
+    if (!isWebGLSupported()) {
+      document.querySelector(".loading-message").style.display = "none";
+      fallback.classList.add("show");
+    }
+
     const threeJsCDNs = [
       'https://cdnjs.cloudflare.com/ajax/libs/three.js/r181/three.min.js',
       'https://unpkg.com/three@0.181.2/build/three.min.js',
@@ -128,13 +178,20 @@
     let isThreeLoaded = false;
     let currentCDNIndex = 0;
 
+    function activateFallback() {
+      fallback.classList.add("show");
+    }
+
     function showError() {
       document.querySelector('.loading-message').innerText =
-        'Ошибка загрузки Three.js — обновите страницу';
+        'Ошибка загрузки Three.js — включён простой режим';
+      activateFallback();
     }
 
     function loadThreeJs() {
+      if (!isWebGLSupported()) return; // сразу fallback
       if (currentCDNIndex >= threeJsCDNs.length) return showError();
+
       const script = document.createElement('script');
       script.src = threeJsCDNs[currentCDNIndex];
       script.onload = () =>
@@ -159,6 +216,7 @@
         alpha: true,
         powerPreference: "high-performance"
       });
+
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.outputColorSpace = THREE.SRGBColorSpace;
