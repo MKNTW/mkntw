@@ -81,11 +81,18 @@
       0%, 100% { background-position: 0% 50%; }
       50%      { background-position: 100% 50%; }
     }
+
+    /* Стиль для ошибки — только если Three.js не загрузился */
+    .error {
+      position: fixed; inset: 0; display: grid; place-items: center;
+      background: #000; color: #fff; font-family: sans-serif; text-align: center;
+      padding: 20px; font-size: 18px; z-index: 100;
+    }
   </style>
 </head>
 <body>
 
-  <canvas id="canvas"></canvas>
+  <canvas id="canvas" style="display: none;"></canvas>
 
   <div class="center">
     <h1 id="easter">сәүбүл котак, братан</h1>
@@ -97,26 +104,53 @@
     <p>© 2025 · All rights reserved</p>
   </div>
 
-  <!-- Three.js с CDN — всегда работает -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.181.0/build/three.min.js"></script>
+  <!-- Несколько fallback CDN для Three.js (r181.2 — последняя версия) -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.181.2/build/three.min.js"></script>
+  <script>
+    // Fallback: если jsDelivr не загрузил, пробуем unpkg
+    window.addEventListener('load', () => {
+      if (typeof THREE === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/three@0.181.2/build/three.min.js';
+        script.onload = initApp;
+        script.onerror = () => showError();
+        document.head.appendChild(script);
+      } else {
+        initApp();
+      }
+    });
+  </script>
 
   <script>
     'use strict';
 
-    // Ждём загрузки Three.js
-    if (typeof THREE === 'undefined') {
-      document.body.innerHTML += '<div style="color:#fff; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); font-family:sans-serif; font-size:20px; text-align:center;">Загрузка Three.js...</div>';
+    let isThreeLoaded = false;
+
+    function showError() {
+      document.body.innerHTML = `
+        <div class="error">
+          <h2>Ошибка загрузки</h2>
+          <p>Не удалось загрузить необходимые библиотеки.</p>
+          <p>Проверьте интернет-соединение и обновите страницу.</p>
+          <p><small>Ошибка: Не удалось загрузить Three.js со всех CDN</small></p>
+        </div>
+      `;
     }
 
-    window.addEventListener('load', () => {
+    function initApp() {
+      if (isThreeLoaded) return;
+      isThreeLoaded = true;
+
       if (typeof THREE === 'undefined') {
-        alert('Не удалось загрузить Three.js. Проверьте интернет.');
+        showError();
         return;
       }
 
       console.log('Three.js r' + THREE.REVISION + ' успешно загружен');
 
       const canvas = document.getElementById('canvas');
+      canvas.style.display = 'block';
+
       const renderer = new THREE.WebGLRenderer({
         canvas,
         antialias: true,
@@ -126,9 +160,17 @@
 
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.8;
-      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      
+      // Совместимость с r181+: используем свойства, которые точно есть
+      if (renderer.toneMapping !== undefined) {
+        renderer.toneMapping = THREE.ACESFilmicToneMapping || THREE.ReinhardToneMapping || THREE.LinearToneMapping;
+      }
+      if (renderer.toneMappingExposure !== undefined) {
+        renderer.toneMappingExposure = 1.8;
+      }
+      if (renderer.outputColorSpace !== undefined) {
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+      }
 
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(56, window.innerWidth / window.innerHeight, 0.1, 100);
@@ -148,28 +190,42 @@
       ctx.fillRect(0, 0, 1024, 1024);
 
       const envTexture = new THREE.CanvasTexture(envCanvas);
-      envTexture.mapping = THREE.EquirectangularReflectionMapping;
+      if (THREE.EquirectangularReflectionMapping !== undefined) {
+        envTexture.mapping = THREE.EquirectangularReflectionMapping;
+      }
       scene.environment = envTexture;
       scene.background = new THREE.Color(0x000000);
 
       // Призма
-      const size = Math.min(window.innerWidth, window.innerHeight) * 0.52;
-      const geometry = new THREE.TetrahedronGeometry(size / 100, 0);
+      const size = Math.min(window.innerWidth, window.innerHeight) * 0.52 / 100; // Убрал лишнее деление
+      const geometry = new THREE.TetrahedronGeometry(size, 0);
 
-      const material = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        metalness: 0,
-        roughness: 0,
-        transmission: 0.99,
-        thickness: 6.5,
-        ior: 1.5,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0,
-        envMapIntensity: 25,
-        specularIntensity: 4,
-        emissive: new THREE.Color(0x0088ff),
-        emissiveIntensity: 0.9
-      });
+      // MeshPhysicalMaterial с fallback на MeshStandardMaterial
+      let material;
+      if (typeof THREE.MeshPhysicalMaterial !== 'undefined') {
+        material = new THREE.MeshPhysicalMaterial({
+          color: 0xffffff,
+          metalness: 0,
+          roughness: 0,
+          transmission: 0.99,
+          thickness: 6.5,
+          ior: 1.5,
+          clearcoat: 1.0,
+          clearcoatRoughness: 0,
+          envMapIntensity: 25,
+          specularIntensity: 4,
+          emissive: new THREE.Color(0x0088ff),
+          emissiveIntensity: 0.9
+        });
+      } else {
+        material = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          metalness: 0,
+          roughness: 0,
+          emissive: new THREE.Color(0x0088ff),
+          emissiveIntensity: 0.9
+        });
+      }
 
       const prism = new THREE.Mesh(geometry, material);
       scene.add(prism);
@@ -211,6 +267,7 @@
       animate();
 
       // Адаптация под размер экрана
+      let currentSize = size;
       window.addEventListener('resize', () => {
         const w = window.innerWidth;
         const h = window.innerHeight;
@@ -220,10 +277,11 @@
         renderer.setSize(w, h);
         camera.position.z = w < 768 ? 14 : 11.5;
 
-        const newSize = Math.min(w, h) * 0.52;
-        prism.scale.setScalar(newSize / size);
+        const newSize = Math.min(w, h) * 0.52 / 100;
+        prism.scale.setScalar(newSize / currentSize);
+        currentSize = newSize;
       });
-    });
+    }
   </script>
 </body>
 </html>
