@@ -1,75 +1,51 @@
-* { margin: 0; padding: 0; box-sizing: border-box; }
+* { margin:0;padding:0;box-sizing:border-box; }
 
-html, body {
-    height: 100%;
-    width: 100%;
-    background: #000;
-    overflow: hidden;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+html,body{
+    height:100%;width:100%;
+    background:#000;overflow:hidden;
+    font-family:-apple-system,system-ui,sans-serif;
 }
 
-canvas {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%;
-    height: 100%;
-    display: block;
+canvas{
+    position:fixed;top:0;left:0;width:100%;height:100%;display:block;
 }
 
-.center {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    pointer-events: none;
-    z-index: 10;
-    padding: 5vmin;
+.center{
+    position:fixed;inset:0;
+    display:flex;flex-direction:column;justify-content:center;align-items:center;
+    pointer-events:none;z-index:10;padding:5vmin;
 }
 
-h1 {
-    font-weight: 900;
-    font-size: clamp(38px, 10vw, 140px);
-    text-align: center;
-    letter-spacing: -0.04em;
-    line-height: 0.92;
-    max-width: 96vw;
-    word-break: break-word;
+h1{
+    font-weight:900;
+    font-size:clamp(48px,12vw,160px);
+    line-height:1;
+    text-align:center;
+    letter-spacing:-0.05em;
 
-    background: linear-gradient(90deg, #ff3366, #ff66aa, #cc33ff, #6677ff, #00ffff, #00ffaa, #88ff44, #ffff44, #ffaa33, #ff3366);
-    background-size: 500% 500%;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    animation: rainbow 16s ease infinite;
+    background:linear-gradient(90deg,
+        #ff0044,#ff4400,#ffaa00,#ffff00,#00ff00,#0088ff,#aa00ff,#ff00ff,#ff0044);
+    background-size:600% 600%;
+    -webkit-background-clip:text;
+    background-clip:text;
+    -webkit-text-fill-color:transparent;
+    animation:epicRainbow 12s ease infinite;
 }
 
-@keyframes rainbow {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
+@keyframes epicRainbow{
+    0%,100%{background-position:0% 50%}
+    50%{background-position:100% 50%}
 }
 
-.footer {
-    position: fixed;
-    bottom: 0; left: 0; width: 100%;
-    text-align: center;
-    padding: 24px 20px;
-    z-index: 20;
-    pointer-events: none;
+.footer{
+    position:fixed;bottom:0;left:0;width:100%;text-align:center;
+    padding:24px 20px;z-index:20;pointer-events:none;
 }
-
-.footer-line {
-    width: 160px;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, #ffffff33, transparent);
-    margin: 0 auto 12px auto;
+.footer-line{
+    width:160px;height:1px;background:linear-gradient(90deg,transparent,#fff3,transparent);
+    margin:0 auto 12px auto;
 }
-
-.footer p {
-    color: #ffffff44;
-    font-size: clamp(13px, 2.5vw, 15px);
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    font-weight: 500;
+.footer p{
+    color:#fff4;font-size:clamp(13px,2.5vw,15px);letter-spacing:3px;
+    text-transform:uppercase;font-weight:600;
 }
