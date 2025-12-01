@@ -1,59 +1,68 @@
 import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
 
 const canvas = document.getElementById('canvas');
-const renderer = new THREE.WebGLRenderer({
-    canvas,
-    antialias: true,
-    alpha: true,
-    powerPreference: "high-performance"
-});
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true, powerPreference:"high-performance"});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(innerWidth, innerHeight);
 renderer.setClearColor(0x000000, 0);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
-camera.position.z = 20;
+const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 100);
+camera.position.z = 22;
 
-const size = Math.min(window.innerWidth, window.innerHeight) * 0.008;
+// === КРИСТАЛЛ КАК В iOS 26 / Vision Pro ===
+const prismSize = Math.min(innerWidth, innerHeight) * 0.009;
 const prism = new THREE.Mesh(
-    new THREE.TetrahedronGeometry(size, 0),
+    new THREE.TetrahedronGeometry(prismSize, 0),
     new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0,
         roughness: 0,
-        transmission: 0.98,
-        thickness: 8,
+        transmission: 0.99,
+        thickness: 10,
         clearcoat: 1,
         clearcoatRoughness: 0,
-        ior: 1.74,
-        envMapIntensity: 15
+        ior: 1.78,           // именно так выглядит стекло в iOS 26
+        envMapIntensity: 30,
+        reflectivity: 1
     })
 );
-prism.position.y = -1.5;
+prism.rotation.set(0.6, 0.8, 0.1);
 scene.add(prism);
 
-// Освещение — как в Vision Pro
-scene.add(new THREE.AmbientLight(0x404060, 5));
-const light = new THREE.DirectionalLight(0xffffff, 15);
-light.position.set(-10, 15, 20);
-scene.add(light);
+// === БЕЛЫЙ ЛУЧ СЛЕВА → ПРИЗМА → РАДУГА СПРАВА ===
+const whiteBeam = new THREE.SpotLight(0xffffff, 30, 100, Math.PI/12, 0.7);
+whiteBeam.position.set(-25, 8, 10);
+whiteBeam.target = prism;
+scene.add(whiteBeam);
+scene.add(whiteBeam.target);
 
-// Радужные лучи
-const colors = [0xff0000, 0xff6600, 0xffff00, 0x00ff00, 0x0088ff, 0x6600ff, 0xff00ff];
-colors.forEach((c, i) => {
-    const light = new THREE.SpotLight(c, 12, 80, Math.PI/6);
+// 7 лучей радуги выходят строго справа и вниз
+const rainbow = [
+    0xff0000, 0xff6600, 0xffaa00, 0xffff00,
+    0x00ff00, 0x0099ff, 0x9900ff
+];
+
+rainbow.forEach((color, i) => {
+    const light = new THREE.SpotLight(color, 15, 120, Math.PI/8, 0.6);
     light.position.copy(prism.position);
-    const angle = (i / colors.length) * Math.PI * 2;
-    light.position.x += Math.sin(angle) * 6;
-    light.position.y += Math.cos(angle) * 4 - 4;
-    light.target.position.y = -50;
+    
+    const angle = 0.3 + i * 0.09;           // физически правильное расхождение
+    light.position.x += Math.cos(angle) * 8;
+    light.position.y -= 3;
+    
+    light.target.position.x = light.position.x + 30;
+    light.target.position.y = light.position.y - 40;
+    
     scene.add(light);
     scene.add(light.target);
 });
 
-// Анимация
-function animate() {
+// мягкий объёмный свет
+scene.add(new THREE.AmbientLight(0x404060, 6));
+
+// анимация
+function animate(){
     requestAnimationFrame(animate);
     prism.rotation.y += 0.006;
     prism.rotation.x += 0.002;
@@ -61,30 +70,27 @@ function animate() {
 }
 animate();
 
-// Ресайз
-window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
+// ресайз
+addEventListener('resize', () => {
+    camera.aspect = innerWidth/innerHeight;
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(innerWidth, innerHeight);
     
-    const newSize = Math.min(window.innerWidth, window.innerHeight) * 0.008;
+    const newSize = Math.min(innerWidth, innerHeight) * 0.009;
     prism.geometry.dispose();
     prism.geometry = new THREE.TetrahedronGeometry(newSize, 0);
 });
 
-// Пасхалка — 5 кликов
-let clicks = 0;
-let timer = null;
-canvas.addEventListener('click', () => {
-    clicks++;
-    clearTimeout(timer);
-    timer = setTimeout(() => clicks = 0, 3000);
-    if (clicks >= 5) {
-        clicks = 0;
-        const div = document.createElement('div');
-        div.style.cssText = 'position:fixed;inset:0;background:#000c;z-index:9999;display:grid;place-items:center;backdrop-filter:blur(30px)';
-        div.innerHTML = `<h2 style="font-size:clamp(60px,15vw,180px);background:linear-gradient(45deg,#00ffaa,#ff3366,#00ffff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:pulse 2s infinite">САУБОЛ КОТАК</h2>`;
-        div.onclick = () => div.remove();
-        document.body.appendChild(div);
+// пасхалка — 5 кликов
+let c=0,t=null;
+canvas.onclick=()=>{c++;clearTimeout(t);t=setTimeout(()=>c=0,3000);
+    if(c>=5){c=0;
+        const el=document.createElement('div');
+        el.innerHTML=`<div style="position:fixed;inset:0;background:#000d;z-index:9999;display:grid;place-items:center;backdrop-filter:blur(40px)">
+            <h2 style="font-size:clamp(70px,18vw,200px);background:linear-gradient(45deg,#00ffff,#ff00aa,#ffff00);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
+                ӘЙДӘ БЕЗНЕҢ
+            </h2></div>`;
+        el.onclick=()=>el.remove();
+        document.body.appendChild(el);
     }
-});
+};
