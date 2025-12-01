@@ -18,14 +18,18 @@ canvas {
 
 .center {
     position: fixed;
-    inset: 0;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     pointer-events: none;
     z-index: 10;
+    width: 100%;
     padding: 20px;
+    text-align: center;
 }
 
 h1 {
@@ -37,58 +41,91 @@ h1 {
     word-break: break-word;
     text-transform: uppercase;
     
-    background: linear-gradient(90deg, 
-        #ff3366, #ff6600, #ffff00, #00ff00, 
-        #00ffff, #0088ff, #6600ff, #ff00ff, 
-        #ff3366);
-    background-size: 300% 300%;
+    /* Улучшенный градиент с волновым эффектом */
+    background: linear-gradient(
+        90deg,
+        #ff0055,
+        #ff5500,
+        #ffff00,
+        #00ff80,
+        #00ffff,
+        #0088ff,
+        #8800ff,
+        #ff00ff,
+        #ff0055
+    );
+    background-size: 400% 400%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    animation: rainbow 10s ease infinite;
+    animation: waveGradient 8s ease infinite, float 6s ease-in-out infinite;
+    text-shadow: 0 0 30px rgba(255, 0, 85, 0.3);
     
     /* Адаптивные размеры для всех устройств */
-    font-size: clamp(28px, 8vw, 120px);
-    
-    /* Оптимизация для iPhone */
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    font-size: clamp(32px, 9vw, 110px);
 }
 
-/* Адаптация заголовка для маленьких экранов */
+/* Волновая анимация градиента */
+@keyframes waveGradient {
+    0%, 100% { 
+        background-position: 0% 50%;
+        filter: hue-rotate(0deg);
+    }
+    25% { 
+        background-position: 100% 25%;
+    }
+    50% { 
+        background-position: 50% 100%;
+        filter: hue-rotate(180deg);
+    }
+    75% { 
+        background-position: 25% 0%;
+    }
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-10px) scale(1.02); }
+}
+
+/* Адаптация для iPhone */
 @media (max-width: 768px) and (orientation: portrait) {
     h1 {
-        font-size: clamp(32px, 10vw, 80px);
-        letter-spacing: -0.02em;
+        font-size: clamp(36px, 11vw, 85px);
         line-height: 0.85;
-        padding: 0 15px;
+        letter-spacing: -0.01em;
+        animation: waveGradient 10s ease infinite, floatMobile 8s ease-in-out infinite;
     }
     
-    .center {
-        padding-top: 40%;
+    @keyframes floatMobile {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50% { transform: translateY(-5px) scale(1.01); }
     }
 }
 
 @media (max-width: 768px) and (orientation: landscape) {
     h1 {
-        font-size: clamp(24px, 6vw, 60px);
+        font-size: clamp(28px, 7vw, 60px);
+        line-height: 0.8;
     }
     
     .center {
-        padding-top: 10%;
+        padding-top: 0;
     }
 }
 
 /* Планшеты */
 @media (min-width: 769px) and (max-width: 1024px) {
     h1 {
-        font-size: clamp(40px, 7vw, 90px);
+        font-size: clamp(44px, 8vw, 95px);
     }
 }
 
-@keyframes rainbow {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
+/* Десктопы */
+@media (min-width: 1025px) {
+    h1 {
+        font-size: clamp(60px, 7vw, 120px);
+    }
 }
 
 .footer {
@@ -103,60 +140,34 @@ h1 {
 }
 
 .footer p {
-    color: #ffffff44;
-    font-size: 14px;
-    letter-spacing: 1px;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: clamp(11px, 2vw, 13px);
+    letter-spacing: 2px;
     text-transform: uppercase;
-    font-weight: 400;
-    
-    /* Адаптация для маленьких экранов */
-    font-size: clamp(12px, 2.5vw, 14px);
+    font-weight: 300;
+    animation: pulse 3s ease-in-out infinite;
 }
 
-/* Адаптация футера для iPhone */
-@media (max-width: 768px) {
-    .footer {
-        padding: 15px;
-    }
-    
-    .footer p {
-        font-size: 12px;
-        letter-spacing: 0.5px;
-    }
+@keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.7; }
 }
 
-/* Отключаем выделение текста на touch устройствах */
+/* Оптимизации для мобильных */
 .no-select {
     -webkit-touch-callout: none;
     -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
     user-select: none;
 }
 
-/* Улучшаем рендеринг для Safari/iPhone */
-@media (-webkit-min-device-pixel-ratio: 2) {
-    canvas {
-        image-rendering: -webkit-optimize-contrast;
-    }
-}
-
-/* Плавные анимации */
+/* Предотвращение выделения */
 * {
     -webkit-tap-highlight-color: transparent;
 }
 
-/* Оптимизация производительности для мобильных */
-@media (max-width: 768px) {
+/* Оптимизация рендеринга для iOS */
+@media (-webkit-min-device-pixel-ratio: 2) {
     canvas {
-        will-change: transform;
-    }
-}
-
-/* Ховер эффекты только для десктопов */
-@media (hover: hover) and (pointer: fine) {
-    canvas:hover {
-        cursor: pointer;
+        image-rendering: optimizeQuality;
     }
 }
