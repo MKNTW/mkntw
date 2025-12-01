@@ -13,8 +13,7 @@
     
     <link rel="stylesheet" href="styles.css">
     
-    <!-- Предзагрузка шрифтов для лучшей производительности -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <!-- Предзагрузка шрифтов -->
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     
     <!-- Оптимизированная версия Three.js -->
@@ -42,29 +41,34 @@
     
     <script>
         // Оптимизация для мобильных устройств
-        if ('ontouchstart' in window || navigator.maxTouchPoints) {
+        if ('ontouchstart' in window) {
             document.body.classList.add('touch-device');
         }
         
-        // Предотвращение стандартных жестов масштабирования на iOS
+        // Предотвращение масштабирования на iOS
         document.addEventListener('touchmove', function(e) {
             if (e.scale !== 1) {
                 e.preventDefault();
             }
         }, { passive: false });
         
-        // Оптимизация загрузки для медленных соединений
-        window.addEventListener('load', function() {
-            setTimeout(function() {
-                document.body.style.opacity = '1';
-            }, 100);
-        });
-        
-        // Адаптация ориентации для мобильных
+        // Обработка ориентации
+        let isPortrait = window.innerHeight > window.innerWidth;
         window.addEventListener('orientationchange', function() {
             setTimeout(function() {
+                isPortrait = window.innerHeight > window.innerWidth;
                 window.dispatchEvent(new Event('resize'));
             }, 300);
+        });
+        
+        // Плавное появление контента
+        window.addEventListener('load', function() {
+            document.body.style.opacity = '0';
+            document.body.style.transition = 'opacity 1s ease';
+            
+            setTimeout(function() {
+                document.body.style.opacity = '1';
+            }, 500);
         });
     </script>
 </body>
