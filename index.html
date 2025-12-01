@@ -8,9 +8,6 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="description" content="Интерактивная 3D визуализация с жидкой призмой">
   
-  <!-- Preload Three.js -->
-  <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.min.js" crossorigin>
-  
   <title>#6medi[v**^mknt\w!&{ps;fp5+__<~</title>
 
   <style>
@@ -34,11 +31,7 @@
       z-index: 1000;
       display: grid;
       place-items: center;
-      transition: opacity 0.5s ease, visibility 0.5s ease;
-    }
-    #loader.hidden {
-      opacity: 0;
-      visibility: hidden;
+      transition: opacity 0.5s ease;
     }
     .spinner {
       width: 48px;
@@ -87,7 +80,6 @@
       -webkit-text-fill-color: transparent;
       animation: flow 20s ease infinite;
       text-shadow: 0 0 60px rgba(100, 200, 255, 0.4);
-      will-change: transform;
     }
     
     /* EASTER EGG */
@@ -209,93 +201,50 @@
       }
     }
     
-    if (!checkWebGL()) {
-      document.getElementById('loader').style.display = 'none';
-      document.getElementById('webgl-fallback').style.display = 'grid';
-      throw new Error('WebGL not supported');
-    }
-    
-    class PrismScene {
-      constructor() {
-        this.canvas = document.getElementById('canvas');
-        this.clock = new THREE.Clock();
-        this.animationId = null;
-        this.tapCount = 0;
-        this.lastTap = 0;
-        this.resizeTimeout = null;
-        this.isDestroyed = false;
-        
-        this.init();
-        this.setupEvents();
-        this.animate();
-        
-        // Скрыть loader после загрузки
-        setTimeout(() => {
-          document.getElementById('loader').classList.add('hidden');
-        }, 300);
-      }
+    // Упрощенная инициализация
+    function initScene() {
+      // Создаем сцену
+      const canvas = document.getElementById('canvas');
+      const renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: true,
+        alpha: true,
+        powerPreference: "high-performance"
+      });
       
-      init() {
-        this.initRenderer();
-        this.initScene();
-        this.createEnvironment();
-        this.createPrism();
-        this.createLights();
-      }
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.9;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
       
-      initRenderer() {
-        this.renderer = new THREE.WebGLRenderer({
-          canvas: this.canvas,
-          antialias: true,
-          alpha: true,
-          powerPreference: "high-performance"
-        });
-        
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.9;
-        this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-        this.renderer.shadowMap.enabled = false;
-      }
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(56, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.z = window.innerWidth < 768 ? 14 : 11.5;
       
-      initScene() {
-        this.scene = new THREE.Scene();
-        
-        this.camera = new THREE.PerspectiveCamera(
-          56,
-          window.innerWidth / window.innerHeight,
-          0.1,
-          1000
-        );
-        this.camera.position.z = window.innerWidth < 768 ? 14 : 11.5;
-      }
+      // Создаем окружение
+      const envCanvas = document.createElement('canvas');
+      envCanvas.width = envCanvas.height = 1024;
+      const ctx = envCanvas.getContext('2d');
+      const grad = ctx.createRadialGradient(512, 512, 0, 512, 512, 512);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.2, '#aaffff');
+      grad.addColorStop(0.5, '#ff88ff');
+      grad.addColorStop(0.8, '#88aaff');
+      grad.addColorStop(1, '#000814');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 1024, 1024);
       
-      createEnvironment() {
-        const envCanvas = document.createElement('canvas');
-        envCanvas.width = envCanvas.height = 1024;
-        const ctx = envCanvas.getContext('2d');
-        
-        const grad = ctx.createRadialGradient(512, 512, 0, 512, 512, 512);
-        grad.addColorStop(0, '#ffffff');
-        grad.addColorStop(0.2, '#aaffff');
-        grad.addColorStop(0.5, '#ff88ff');
-        grad.addColorStop(0.8, '#88aaff');
-        grad.addColorStop(1, '#000814');
-        
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, 1024, 1024);
-        
-        this.envTexture = new THREE.CanvasTexture(envCanvas);
-        this.envTexture.mapping = THREE.EquirectangularReflectionMapping;
-        this.scene.environment = this.envTexture;
-        this.scene.background = new THREE.Color(0x000000);
-      }
+      const envTexture = new THREE.CanvasTexture(envCanvas);
+      envTexture.mapping = THREE.EquirectangularReflectionMapping;
+      scene.environment = envTexture;
+      scene.background = new THREE.Color(0x000000);
       
-      createPrism() {
-        const size = Math.min(window.innerWidth, window.innerHeight) * 0.0052;
-        
-        this.prismMaterial = new THREE.MeshPhysicalMaterial({
+      // Создаем призму
+      const size = Math.min(window.innerWidth, window.innerHeight) * 0.52;
+      const prism = new THREE.Mesh(
+        new THREE.TetrahedronGeometry(size / 100, 0),
+        new THREE.MeshPhysicalMaterial({
           color: 0xffffff,
           metalness: 0,
           roughness: 0,
@@ -308,211 +257,150 @@
           reflectivity: 1,
           specularIntensity: 3.5,
           emissive: new THREE.Color(0x0088ff),
-          emissiveIntensity: 0.8,
-          precision: 'highp' // Для iOS Safari
-        });
-        
-        this.prism = new THREE.Mesh(
-          new THREE.TetrahedronGeometry(1, 0),
-          this.prismMaterial
+          emissiveIntensity: 0.8
+        })
+      );
+      scene.add(prism);
+      
+      // Добавляем освещение
+      const colors = [0x00ffff, 0xff0088, 0x88ff44];
+      colors.forEach((c, i) => {
+        const light = new THREE.PointLight(c, 28, 100);
+        light.position.set(
+          Math.sin(i * 2.4) * 24,
+          Math.cos(i * 2.4) * 14,
+          18
         );
+        scene.add(light);
+      });
+      
+      // Пасхалка
+      let taps = 0;
+      let lastTap = 0;
+      document.addEventListener('click', (e) => {
+        // Игнорируем клики в элементы, которые не canvas (кроме пасхалки)
+        if (e.target.id !== 'easter' && e.target.tagName !== 'CANVAS') return;
         
-        this.prism.scale.setScalar(size);
-        this.scene.add(this.prism);
+        const currentTime = Date.now();
+        if (currentTime - lastTap < 500) {
+          taps++;
+        } else {
+          taps = 1;
+        }
+        lastTap = currentTime;
+        
+        if (taps === 3) {
+          const easter = document.getElementById('easter');
+          easter.classList.toggle('show');
+          taps = 0;
+          
+          // Автоскрытие через 3 секунды
+          setTimeout(() => {
+            easter.classList.remove('show');
+          }, 3000);
+        }
+      });
+      
+      // Анимация
+      const clock = new THREE.Clock();
+      function animate() {
+        requestAnimationFrame(animate);
+        const t = clock.getElapsedTime();
+        
+        prism.rotation.y = t * 0.3;
+        prism.rotation.x = t * 0.18;
+        
+        renderer.render(scene, camera);
       }
       
-      createLights() {
-        const colors = [0x00ffff, 0xff0088, 0x88ff44];
-        
-        this.lights = colors.map((c, i) => {
-          const light = new THREE.PointLight(c, 28, 100);
-          light.position.set(
-            Math.sin(i * 2.4) * 24,
-            Math.cos(i * 2.4) * 14,
-            18
-          );
-          this.scene.add(light);
-          return light;
-        });
-        
-        // Ambient light для равномерного освещения
-        const ambient = new THREE.AmbientLight(0x222222, 0.5);
-        this.scene.add(ambient);
-      }
+      // Запускаем анимацию и скрываем лоадер
+      animate();
       
-      setupEvents() {
-        // Обработка пасхалки
-        const handleInteraction = () => {
-          const currentTime = Date.now();
-          const tapLength = currentTime - this.lastTap;
-          
-          if (tapLength < 500 && tapLength > 0) {
-            this.tapCount++;
-          } else {
-            this.tapCount = 1;
-          }
-          
-          this.lastTap = currentTime;
-          
-          if (this.tapCount === 3) {
-            const easter = document.getElementById('easter');
-            easter.classList.add('show');
-            this.tapCount = 0;
-            
-            // Автоскрытие через 3 секунды
-            setTimeout(() => {
-              easter.classList.remove('show');
-            }, 3000);
-          }
-        };
-        
-        this.canvas.addEventListener('click', handleInteraction);
-        this.canvas.addEventListener('touchend', (e) => {
-          e.preventDefault();
-          handleInteraction();
-        }, { passive: false });
-        
-        // Resize с debounce
-        window.addEventListener('resize', () => {
-          this.handleResize();
-        });
-        
-        // Cleanup при размонтировании
-        window.addEventListener('beforeunload', () => this.cleanup());
-        window.addEventListener('pagehide', () => this.cleanup());
-      }
+      // Скрываем лоадер сразу после успешной инициализации
+      setTimeout(() => {
+        const loader = document.getElementById('loader');
+        loader.style.opacity = '0';
+        setTimeout(() => {
+          loader.style.display = 'none';
+        }, 500);
+      }, 300);
       
-      handleResize() {
-        clearTimeout(this.resizeTimeout);
+      // Обработка ресайза
+      window.addEventListener('resize', () => {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+        camera.position.z = w < 768 ? 14 : 11.5;
         
-        this.resizeTimeout = setTimeout(() => {
-          if (this.isDestroyed) return;
-          
-          const w = window.innerWidth;
-          const h = window.innerHeight;
-          
-          this.camera.aspect = w / h;
-          this.camera.updateProjectionMatrix();
-          this.renderer.setSize(w, h);
-          this.camera.position.z = w < 768 ? 14 : 11.5;
-          
-          // Масштабирование призмы вместо пересоздания
-          const scale = Math.min(w, h) * 0.0052;
-          this.prism.scale.setScalar(scale);
-        }, 100);
-      }
+        // Масштабируем призму
+        const newSize = Math.min(w, h) * 0.52;
+        prism.scale.setScalar(newSize / size);
+      });
       
-      animate() {
-        if (this.isDestroyed) return;
-        
-        this.animationId = requestAnimationFrame(() => this.animate());
-        
-        const delta = this.clock.getDelta();
-        const elapsed = this.clock.getElapsedTime();
-        
-        // Плавная анимация с delta time
-        this.prism.rotation.y += delta * 0.3;
-        this.prism.rotation.x += delta * 0.18;
-        
-        // Легкое пульсирование для эффекта "жидкости"
-        const pulse = Math.sin(elapsed * 0.5) * 0.05 + 1;
-        this.prism.scale.x = this.prism.scale.z = this.prism.scale.y * pulse;
-        
-        // Анимация света
-        this.lights.forEach((light, i) => {
-          light.position.x = Math.sin(elapsed * 0.5 + i * 2.4) * 24;
-          light.position.y = Math.cos(elapsed * 0.5 + i * 2.4) * 14;
-          light.intensity = 28 + Math.sin(elapsed * 2 + i) * 5;
-        });
-        
-        this.renderer.render(this.scene, this.camera);
-        
-        // Мониторинг FPS (только в dev)
-        if (window.location.hostname === 'localhost') {
-          this.monitorFPS();
-        }
-      }
-      
-      monitorFPS() {
-        if (!this.frameCount) this.frameCount = 0;
-        if (!this.lastFPSUpdate) this.lastFPSUpdate = performance.now();
-        
-        this.frameCount++;
-        const currentTime = performance.now();
-        
-        if (currentTime >= this.lastFPSUpdate + 1000) {
-          // console.log(`FPS: ${this.frameCount}`);
-          this.frameCount = 0;
-          this.lastFPSUpdate = currentTime;
-        }
-      }
-      
-      cleanup() {
-        this.isDestroyed = true;
-        
-        if (this.animationId) {
-          cancelAnimationFrame(this.animationId);
-          this.animationId = null;
-        }
-        
-        // Освобождение ресурсов Three.js
-        if (this.renderer) {
-          this.renderer.dispose();
-          this.renderer.forceContextLoss();
-          this.renderer.domElement = null;
-          this.renderer = null;
-        }
-        
-        if (this.envTexture) {
-          this.envTexture.dispose();
-        }
-        
-        if (this.prism) {
-          if (this.prism.geometry) {
-            this.prism.geometry.dispose();
-          }
-          if (this.prism.material) {
-            if (Array.isArray(this.prism.material)) {
-              this.prism.material.forEach(m => m.dispose());
-            } else {
-              this.prism.material.dispose();
-            }
-          }
-          this.scene.remove(this.prism);
-        }
-        
-        if (this.lights) {
-          this.lights.forEach(light => {
-            if (light.dispose) light.dispose();
-            this.scene.remove(light);
-          });
-        }
-        
-        if (this.scene) {
-          this.scene.clear();
-        }
-      }
+      // Возвращаем объекты для доступа
+      return { renderer, scene, camera, prism };
     }
     
-    // Инициализация после загрузки страницы
-    let sceneInstance = null;
-    
+    // Инициализация при загрузке страницы
     window.addEventListener('load', () => {
-      if (checkWebGL()) {
-        sceneInstance = new PrismScene();
+      // Проверяем WebGL
+      if (!checkWebGL()) {
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('webgl-fallback').style.display = 'grid';
+        return;
       }
+      
+      // Проверяем, загружен ли Three.js
+      if (typeof THREE === 'undefined') {
+        console.error('Three.js не загружен');
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('webgl-fallback').innerHTML = `
+          <div>
+            <h2>Ошибка загрузки</h2>
+            <p>Не удалось загрузить Three.js библиотеку.</p>
+            <p>Проверьте интернет-соединение.</p>
+          </div>
+        `;
+        document.getElementById('webgl-fallback').style.display = 'grid';
+        return;
+      }
+      
+      try {
+        // Пытаемся инициализировать сцену
+        initScene();
+      } catch (error) {
+        console.error('Ошибка инициализации:', error);
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('webgl-fallback').innerHTML = `
+          <div>
+            <h2>Ошибка инициализации</h2>
+            <p>${error.message}</p>
+            <p>Попробуйте обновить страницу.</p>
+          </div>
+        `;
+        document.getElementById('webgl-fallback').style.display = 'grid';
+      }
+      
+      // Фейлсейф: скрыть лоадер через 5 секунд в любом случае
+      setTimeout(() => {
+        const loader = document.getElementById('loader');
+        if (loader.style.display !== 'none') {
+          loader.style.opacity = '0';
+          setTimeout(() => {
+            loader.style.display = 'none';
+          }, 500);
+        }
+      }, 5000);
     });
     
-    // Экспорт для отладки
-    window.SceneInstance = {
-      getInstance: () => sceneInstance,
-      recreate: () => {
-        if (sceneInstance) {
-          sceneInstance.cleanup();
-        }
-        sceneInstance = new PrismScene();
-      }
-    };
+    // Показываем контент сразу, даже если Three.js еще грузится
+    document.addEventListener('DOMContentLoaded', () => {
+      // Показываем основной контент сразу
+      document.querySelector('.center').style.visibility = 'visible';
+      document.querySelector('.footer').style.visibility = 'visible';
+    });
   </script>
 </body>
 </html>
