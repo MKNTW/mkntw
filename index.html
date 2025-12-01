@@ -3,30 +3,166 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- ТОТАЛЬНАЯ ЧЕРНОТА ДЛЯ ВСЕХ БРАУЗЕРОВ -->
     <meta name="theme-color" content="#000000">
-    <meta name="msapplication-navbutton-color" content="#000000">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>#6medi[v**^mknt\w!&{ps;fp5+__<~</title>
-    <link rel="stylesheet" href="styles.css">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html, body {
+            width:100%; height:100%; background:#000; overflow:hidden;
+            font-family: 'SF Pro Display', -apple-system, sans-serif;
+            color-scheme: dark;
+        }
+        canvas { position:fixed; inset:0; display:block; }
+        .center {
+            position:fixed; inset:0; display:grid; place-items:center;
+            pointer-events:none; z-index:10; padding:8vmin 10vw;
+        }
+        h1 {
+            font-weight:900; font-size:clamp(48px,12.5vw,180px);
+            letter-spacing:-0.05em; line-height:0.9; text-align:center;
+            background:linear-gradient(90deg,#ff3366,#ff66aa,#cc33ff,#6677ff,#00ffff,#00ffaa,#88ff44,#ffff44,#ffaa33,#ff3366);
+            background-size:700% 700%;
+            -webkit-background-clip:text; background-clip:text;
+            -webkit-text-fill-color:transparent;
+            animation:rainbow 18s ease infinite;
+            text-shadow:0 0 40px rgba(255,255,255,0.3);
+        }
+        #easter {
+            position:fixed; inset:0; display:grid; place-items:center;
+            font-size:clamp(42px,11vw,130px); font-weight:900;
+            background:linear-gradient(90deg,#00ffcc,#ff00aa,#aaff00,#00ffcc);
+            -webkit-background-clip:text; background-clip:text;
+            -webkit-text-fill-color:transparent;
+            opacity:0; pointer-events:none; z-index:50;
+            transition:opacity 0.8s ease;
+        }
+        #easter.show { opacity:1; pointer-events:all; }
+        .footer {
+            position:fixed; bottom:0; left:0; width:100%; text-align:center;
+            padding:36px 20px; z-index:20; pointer-events:none;
+        }
+        .footer-line {
+            width:220px; height:1px; background:linear-gradient(90deg,transparent,#ffffff66,transparent);
+            margin:0 auto 16px auto;
+        }
+        .footer p {
+            color:#ffffff77; font-size:clamp(14px,2.8vw,17px);
+            letter-spacing:4px; text-transform:uppercase; font-weight:600;
+        }
+        @keyframes rainbow {
+            0%,100% {background-position:0% 50%}
+            50% {background-position:100% 50%}
+        }
+    </style>
 </head>
 <body>
 
     <canvas id="canvas"></canvas>
 
-    <main class="center">
+    <div class="center">
         <h1 id="easter">сәүбүл котак, братан</h1>
-        <h1 class="main-title">#6medi[v**^mknt\w!&{ps;fp5+__<~</h1>
-    </main>
+        <h1>#6medi[v**^mknt\w!&{ps;fp5+__<~</h1>
+    </div>
 
-    <footer class="footer">
+    <div class="footer">
         <div class="footer-line"></div>
         <p>© 2025 · All rights reserved</p>
-    </footer>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.168.0/examples/js/loaders/RGBELoader.js"></script>
-    <script src="script.js"></script>
+    <script>
+        // НЕУБИВАЕМАЯ ПРИЗМА — РАБОТАЕТ БЕЗ HDR, БЕЗ ИНТЕРНЕТА
+        const canvas = document.getElementById('canvas');
+        const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(innerWidth, innerHeight);
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.8;
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(56, innerWidth/innerHeight, 0.1, 100);
+        camera.position.z = innerWidth < 768 ? 14 : 11;
+
+        // СОЗДАЁМ СВОЁ СОБСТВЕННОЕ ЯРКОЕ ОКРУЖЕНИЕ (без загрузки HDR!)
+        const createEnvMap = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            const grad = ctx.createRadialGradient(256,256,0,256,256,256);
+            grad.addColorStop(0, '#ffffff');
+            grad.addColorStop(0.3, '#88ccff');
+            grad.addColorStop(0.7, '#ff88cc');
+            grad.addColorStop(1, '#000000');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0,0,512,512);
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.mapping = THREE.EquirectangularReflectionMapping;
+            return tex;
+        };
+        scene.environment = createEnvMap();
+        scene.background = new THREE.Color(0x000000);
+
+        // ЖИДКАЯ СТЕКЛЯННАЯ ПРИЗМА — ВИДНА ВСЕГДА
+        const size = Math.min(innerWidth, innerHeight) * 0.5;
+        const prism = new THREE.Mesh(
+            new THREE.TetrahedronGeometry(size/100, 0),
+            new THREE.MeshPhysicalMaterial({
+                color: 0xffffff,
+                metalness: 0,
+                roughness: 0,
+                transmission: 0.98,
+                thickness: 5,
+                ior: 1.5,
+                clearcoat: 1,
+                clearcoatRoughness: 0,
+                envMapIntensity: 20,
+                reflectivity: 1,
+                specularIntensity: 3,
+                emissive: 0x0088ff,
+                emissiveIntensity: 0.6
+            })
+        );
+        scene.add(prism);
+
+        // ЯРКИЕ ЛУЧИ — ГАРАНТИРОВАННО ВИДНЫ
+        ['#00ffff', '#ff0088', '#88ff44'].forEach((c,i) => {
+            const l = new THREE.PointLight(c, 25, 100);
+            l.position.set(
+                Math.sin(i*2.4)*22,
+                Math.cos(i*2.4)*12,
+                16
+            );
+            scene.add(l);
+        });
+
+        // Пасхалка — 3 клика
+        let taps = 0;
+        document.addEventListener('click', () => {
+            if (++taps === 3) {
+                document.getElementById('easter').classList.toggle('show');
+                taps = 0;
+            }
+        });
+
+        // Анимация
+        const animate = () => {
+            requestAnimationFrame(animate);
+            prism.rotation.y += 0.0045;
+            prism.rotation.x += 0.002;
+            renderer.render(scene, camera);
+        };
+        animate();
+
+        // Resize
+        window.addEventListener('resize', () => {
+            const w = innerWidth, h = innerHeight;
+            camera.aspect = w/h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+            camera.position.z = w < 768 ? 14 : 11;
+        });
+    </script>
 </body>
 </html>
