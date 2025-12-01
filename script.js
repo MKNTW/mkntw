@@ -20,14 +20,14 @@ renderer.toneMappingExposure = 1.5;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.z = 40;
-camera.position.y = 8;
+camera.position.y = 5;
 
 // Адаптивный размер призмы
 const getPrismSize = () => {
     const screenSize = Math.min(window.innerWidth, window.innerHeight);
-    if (screenSize < 768) return screenSize * 0.025; // iPhone
-    if (screenSize < 1024) return screenSize * 0.02; // iPad
-    return screenSize * 0.015; // Desktop
+    if (screenSize < 768) return screenSize * 0.03; // iPhone
+    if (screenSize < 1024) return screenSize * 0.025; // iPad
+    return screenSize * 0.02; // Desktop
 };
 
 // Liquid Glass Prism
@@ -39,22 +39,22 @@ const prism = new THREE.Mesh(
         metalness: 0,
         roughness: 0,
         transmission: 0.99,
-        thickness: 20,
+        thickness: 25,
         clearcoat: 1,
         clearcoatRoughness: 0,
-        ior: 2.2,
-        envMapIntensity: 30,
-        specularIntensity: 2,
-        sheen: 1,
-        sheenRoughness: 0.1,
-        sheenColor: 0xffdd88,
-        iridescence: 1.5,
-        iridescenceIOR: 1.8,
-        iridescenceThicknessRange: [200, 800]
+        ior: 2.4,
+        envMapIntensity: 35,
+        specularIntensity: 3,
+        sheen: 1.2,
+        sheenRoughness: 0.05,
+        sheenColor: 0xffcc88,
+        iridescence: 1.8,
+        iridescenceIOR: 2.0,
+        iridescenceThicknessRange: [300, 1000]
     })
 );
 prism.position.y = 0;
-prism.position.z = 10;
+prism.position.z = 15;
 scene.add(prism);
 
 // Окружение для отражений
@@ -70,282 +70,625 @@ scene.background = new THREE.Color(0x000011);
 prism.material.envMap = envMap;
 
 // Освещение
-scene.add(new THREE.AmbientLight(0x4040c0, 3));
+scene.add(new THREE.AmbientLight(0x4040c0, 2));
 
-const mainLight = new THREE.DirectionalLight(0xffaa88, 25);
-mainLight.position.set(-25, 40, 30);
+const mainLight = new THREE.DirectionalLight(0xffaa88, 30);
+mainLight.position.set(-30, 50, 40);
 scene.add(mainLight);
 
-const backLight = new THREE.DirectionalLight(0x4488ff, 15);
-backLight.position.set(20, 10, -30);
+const backLight = new THREE.DirectionalLight(0x4488ff, 20);
+backLight.position.set(25, 15, -40);
 scene.add(backLight);
 
-// Создаём реалистичное солнце с пиксельным стилем
-const createRealisticSun = () => {
-    const sunGroup = new THREE.Group();
+// Система частиц для солнечных вспышек и выбросов
+class SolarSystem {
+    constructor() {
+        this.particles = [];
+        this.flares = [];
+        this.cmeParticles = [];
+        this.solarWind = [];
+        this.explosions = [];
+        this.sunGroup = new THREE.Group();
+        
+        this.initSun();
+        this.initParticleSystems();
+    }
     
-    // Ядро солнца - пиксельный стиль (низкополигональная сфера)
-    const coreGeometry = new THREE.IcosahedronGeometry(12, 1); // Малое количество полигонов для пиксельного вида
-    const coreMaterial = new THREE.MeshBasicMaterial({
-        color: 0xff3300,
-        emissive: 0xff5500,
-        emissiveIntensity: 2
-    });
-    const core = new THREE.Mesh(coreGeometry, coreMaterial);
-    sunGroup.add(core);
+    initSun() {
+        // Ядро солнца - сфера с шейдером для реалистичной поверхности
+        const coreGeometry = new THREE.SphereGeometry(14, 64, 64);
+        const coreMaterial = new THREE.MeshBasicMaterial({
+            color: 0xff3300,
+            emissive: 0xff5500,
+            emissiveIntensity: 3,
+            transparent: true,
+            opacity: 0.9
+        });
+        this.core = new THREE.Mesh(coreGeometry, coreMaterial);
+        this.sunGroup.add(this.core);
+        
+        // Фотосфера с турбулентным шейдером
+        const photosphereGeometry = new THREE.SphereGeometry(15, 128, 128);
+        const photosphereMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0 },
+                turbulence: { value: 1.0 }
+            },
+            vertexShader: `
+                varying vec3 vPosition;
+                varying vec3 vNormal;
+                void main() {
+                    vPosition = position;
+                    vNormal = normalize(normalMatrix * normal);
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform float time;
+                uniform float turbulence;
+                varying vec3 vPosition;
+                varying vec3 vNormal;
+                
+                float hash(vec2 p) {
+                    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+                }
+                
+                float noise(vec2 p) {
+                    vec2 i = floor(p);
+                    vec2 f = fract(p);
+                    vec2 u = f * f * (3.0 - 2.0 * f);
+                    return mix(mix(hash(i + vec2(0.0,0.0)), 
+                                   hash(i + vec2(1.0,0.0)), u.x),
+                               mix(hash(i + vec2(0.0,1.0)), 
+                                   hash(i + vec2(1.0,1.0)), u.x), u.y);
+                }
+                
+                void main() {
+                    vec2 uv = vec2(atan(vPosition.x, vPosition.z) / 3.1416, asin(vPosition.y / 15.0) / 1.5708);
+                    
+                    // Слои шума для грануляции
+                    float n1 = noise(uv * 10.0 + time * 0.5);
+                    float n2 = noise(uv * 20.0 - time * 0.3);
+                    float n3 = noise(uv * 40.0 + time * 0.7);
+                    
+                    // Солнечные пятна
+                    float spots = smoothstep(0.7, 0.9, n1) * 0.3;
+                    
+                    // Цвета солнечной поверхности
+                    vec3 color1 = vec3(1.0, 0.3, 0.1); // Темно-красный
+                    vec3 color2 = vec3(1.0, 0.5, 0.2); // Оранжевый
+                    vec3 color3 = vec3(1.0, 0.8, 0.4); // Светло-оранжевый
+                    vec3 color4 = vec3(1.0, 1.0, 0.6); // Желтый
+                    
+                    // Грануляция
+                    float granulation = n1 * 0.3 + n2 * 0.2 + n3 * 0.1;
+                    
+                    // Создаем турбулентную поверхность
+                    vec3 finalColor = mix(color1, color2, granulation * 0.5);
+                    finalColor = mix(finalColor, color3, granulation * 0.3);
+                    finalColor = mix(finalColor, color4, granulation * 0.1);
+                    
+                    // Добавляем пятна
+                    finalColor *= 1.0 - spots;
+                    
+                    // Яркость к центру
+                    float brightness = 1.0 - length(vPosition) / 15.0;
+                    finalColor *= 1.0 + brightness * 2.0;
+                    
+                    gl_FragColor = vec4(finalColor, 1.0);
+                }
+            `,
+            transparent: false,
+            side: THREE.FrontSide
+        });
+        
+        this.photosphere = new THREE.Mesh(photosphereGeometry, photosphereMaterial);
+        this.sunGroup.add(this.photosphere);
+        
+        // Корона солнца
+        const coronaGeometry = new THREE.SphereGeometry(25, 64, 64);
+        const coronaMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffaa44,
+            transparent: true,
+            opacity: 0.15,
+            side: THREE.BackSide
+        });
+        this.corona = new THREE.Mesh(coronaGeometry, coronaMaterial);
+        this.sunGroup.add(this.corona);
+        
+        this.sunGroup.position.set(0, 0, -100);
+    }
     
-    // Фотосфера - внешний слой солнца
-    const photosphereGeometry = new THREE.SphereGeometry(13, 32, 32);
-    const photosphereMaterial = new THREE.ShaderMaterial({
-        uniforms: {
-            time: { value: 0 },
-            noiseTexture: { 
-                value: createNoiseTexture(512, 512) 
-            }
-        },
-        vertexShader: `
-            varying vec2 vUv;
-            varying vec3 vPosition;
-            void main() {
-                vUv = uv;
-                vPosition = position;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-            }
-        `,
-        fragmentShader: `
-            uniform float time;
-            uniform sampler2D noiseTexture;
-            varying vec2 vUv;
-            varying vec3 vPosition;
+    initParticleSystems() {
+        // Создаём геометрию и материал для солнечных частиц
+        this.particleGeometry = new THREE.BufferGeometry();
+        this.particleMaterial = new THREE.PointsMaterial({
+            color: 0xff8800,
+            size: 2,
+            transparent: true,
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        
+        // Создаём массив частиц
+        const particleCount = 1000;
+        const positions = new Float32Array(particleCount * 3);
+        const velocities = new Float32Array(particleCount * 3);
+        const sizes = new Float32Array(particleCount);
+        const lifetimes = new Float32Array(particleCount);
+        
+        for (let i = 0; i < particleCount; i++) {
+            const i3 = i * 3;
+            // Начальная позиция на поверхности солнца
+            const radius = 15 + Math.random() * 5;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
             
-            void main() {
-                vec2 uv = vUv;
-                float noise = texture2D(noiseTexture, uv + vec2(time * 0.1, 0.0)).r;
-                float noise2 = texture2D(noiseTexture, uv * 2.0 - vec2(time * 0.05, 0.0)).r;
-                
-                // Основной цвет солнца
-                vec3 color1 = vec3(1.0, 0.4, 0.1); // Оранжевый
-                vec3 color2 = vec3(1.0, 0.8, 0.2); // Жёлтый
-                vec3 color3 = vec3(1.0, 0.1, 0.05); // Красный
-                
-                // Грануляция поверхности солнца
-                float granulation = noise * 0.3 + noise2 * 0.2;
-                
-                // Пятна на солнце
-                float spots = step(0.7, noise) * 0.3;
-                
-                // Смешиваем цвета
-                vec3 finalColor = mix(color1, color2, granulation);
-                finalColor = mix(finalColor, color3, spots);
-                
-                // Эффект пикселизации
-                float pixelSize = 8.0;
-                vec2 pixelUV = floor(uv * pixelSize) / pixelSize;
-                float pixelNoise = texture2D(noiseTexture, pixelUV).r;
-                finalColor *= 0.9 + pixelNoise * 0.2;
-                
-                // Яркость к центру
-                float centerBright = 1.0 - length(uv - 0.5);
-                finalColor *= 1.0 + centerBright * 2.0;
-                
-                gl_FragColor = vec4(finalColor, 1.0);
-            }
-        `,
-        transparent: false,
-        side: THREE.BackSide
-    });
+            positions[i3] = Math.sin(phi) * Math.cos(theta) * radius;
+            positions[i3 + 1] = Math.sin(phi) * Math.sin(theta) * radius;
+            positions[i3 + 2] = Math.cos(phi) * radius;
+            
+            // Случайная начальная скорость
+            velocities[i3] = (Math.random() - 0.5) * 0.5;
+            velocities[i3 + 1] = (Math.random() - 0.5) * 0.5;
+            velocities[i3 + 2] = (Math.random() - 0.5) * 0.5;
+            
+            sizes[i] = Math.random() * 3 + 1;
+            lifetimes[i] = Math.random() * 10;
+        }
+        
+        this.particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        this.particleGeometry.setAttribute('velocity', new THREE.BufferAttribute(velocities, 3));
+        this.particleGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+        this.particleGeometry.setAttribute('lifetime', new THREE.BufferAttribute(lifetimes, 1));
+        
+        this.particleSystem = new THREE.Points(this.particleGeometry, this.particleMaterial);
+        this.sunGroup.add(this.particleSystem);
+    }
     
-    const photosphere = new THREE.Mesh(photosphereGeometry, photosphereMaterial);
-    sunGroup.add(photosphere);
-    
-    // Корона солнца (внешняя атмосфера)
-    const coronaGeometry = new THREE.SphereGeometry(20, 32, 32);
-    const coronaMaterial = new THREE.MeshBasicMaterial({
-        color: 0xff8800,
-        transparent: true,
-        opacity: 0.2,
-        side: THREE.BackSide
-    });
-    const corona = new THREE.Mesh(coronaGeometry, coronaMaterial);
-    sunGroup.add(corona);
-    
-    // Солнечные вспышки (протуберанцы)
-    const createSolarFlare = () => {
+    createSolarFlare() {
         const flareGroup = new THREE.Group();
         
-        // Основа вспышки
-        const flareGeometry = new THREE.ConeGeometry(0.5, 8 + Math.random() * 12, 4);
+        // Основа вспышки - конус
+        const flareLength = 20 + Math.random() * 30;
+        const flareGeometry = new THREE.ConeGeometry(1, flareLength, 8);
         const flareMaterial = new THREE.MeshBasicMaterial({
-            color: 0xff2200,
+            color: new THREE.Color().setHSL(Math.random() * 0.1 + 0.05, 1, 0.7),
             transparent: true,
-            opacity: 0.8
+            opacity: 0.9,
+            blending: THREE.AdditiveBlending
         });
         
         const flare = new THREE.Mesh(flareGeometry, flareMaterial);
-        flare.rotation.x = Math.PI / 2;
         
-        // Случайная позиция на поверхности солнца
+        // Позиция на поверхности солнца
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.random() * Math.PI;
-        flare.position.x = 14 * Math.sin(phi) * Math.cos(theta);
-        flare.position.y = 14 * Math.sin(phi) * Math.sin(theta);
-        flare.position.z = 14 * Math.cos(phi);
+        flare.position.x = 15 * Math.sin(phi) * Math.cos(theta);
+        flare.position.y = 15 * Math.sin(phi) * Math.sin(theta);
+        flare.position.z = 15 * Math.cos(phi);
         
         // Направляем от солнца
         flare.lookAt(0, 0, 0);
         flare.rotateX(Math.PI / 2);
         
         flareGroup.add(flare);
+        
+        // Анимационные свойства
         flareGroup.userData = {
-            life: 1 + Math.random() * 2,
-            maxLife: 1 + Math.random() * 2,
-            rotationSpeed: (Math.random() - 0.5) * 0.02
+            life: 0,
+            maxLife: 2 + Math.random() * 3,
+            growth: 1 + Math.random() * 2,
+            rotationSpeed: (Math.random() - 0.5) * 0.1,
+            startPosition: flare.position.clone(),
+            direction: new THREE.Vector3().copy(flare.position).normalize()
         };
         
-        return flareGroup;
-    };
-    
-    // Массив вспышек
-    const flares = [];
-    for (let i = 0; i < 8; i++) {
-        const flare = createSolarFlare();
-        sunGroup.add(flare);
-        flares.push(flare);
+        this.flares.push(flareGroup);
+        this.sunGroup.add(flareGroup);
+        
+        // Создаём взрыв частиц
+        this.createExplosion(flare.position, 5 + Math.random() * 10);
     }
     
-    // Солнечные выбросы (корональные выбросы массы)
-    const createCoronalMassEjection = () => {
+    createExplosion(position, intensity = 10) {
+        const explosionGroup = new THREE.Group();
+        const particleCount = Math.floor(intensity * 20);
+        
+        for (let i = 0; i < particleCount; i++) {
+            const particleGeometry = new THREE.SphereGeometry(0.3 + Math.random() * 0.7, 4, 4);
+            const particleMaterial = new THREE.MeshBasicMaterial({
+                color: new THREE.Color().setHSL(Math.random() * 0.2, 1, 0.6),
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending
+            });
+            
+            const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+            particle.position.copy(position);
+            
+            // Случайное направление с небольшим смещением от центра
+            const direction = new THREE.Vector3(
+                (Math.random() - 0.5) * 2,
+                (Math.random() - 0.5) * 2,
+                (Math.random() - 0.5) * 2
+            ).normalize();
+            
+            particle.userData = {
+                velocity: direction.multiplyScalar(2 + Math.random() * 3),
+                life: 0,
+                maxLife: 1 + Math.random() * 2,
+                rotationSpeed: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.1,
+                    (Math.random() - 0.5) * 0.1,
+                    (Math.random() - 0.5) * 0.1
+                )
+            };
+            
+            explosionGroup.add(particle);
+        }
+        
+        this.explosions.push(explosionGroup);
+        this.sunGroup.add(explosionGroup);
+    }
+    
+    createCME() {
         const cmeGroup = new THREE.Group();
+        const cmeCount = 10 + Math.floor(Math.random() * 20);
         
-        const cmeGeometry = new THREE.SphereGeometry(1, 8, 8);
-        const cmeMaterial = new THREE.MeshBasicMaterial({
-            color: 0xff5500,
-            transparent: true,
-            opacity: 0.6
-        });
-        
-        const cme = new THREE.Mesh(cmeGeometry, cmeMaterial);
-        
-        // Начальная позиция
+        // Позиция выброса
         const angle = Math.random() * Math.PI * 2;
-        cme.position.x = Math.cos(angle) * 15;
-        cme.position.y = Math.sin(angle) * 15;
-        
-        cmeGroup.add(cme);
-        cmeGroup.userData = {
-            speed: 0.3 + Math.random() * 0.5,
-            angle: angle,
-            distance: 15,
-            life: 0
-        };
-        
-        return cmeGroup;
-    };
-    
-    // Массив корональных выбросов
-    const cmeArray = [];
-    for (let i = 0; i < 4; i++) {
-        const cme = createCoronalMassEjection();
-        sunGroup.add(cme);
-        cmeArray.push(cme);
-    }
-    
-    // Кометы (быстрые частицы)
-    const createComet = () => {
-        const cometGroup = new THREE.Group();
-        
-        const cometGeometry = new THREE.SphereGeometry(0.3, 6, 6);
-        const cometMaterial = new THREE.MeshBasicMaterial({
-            color: 0x88ffff,
-            transparent: true,
-            opacity: 0.8
-        });
-        
-        const comet = new THREE.Mesh(cometGeometry, cometMaterial);
-        
-        // Хвост кометы
-        const tailGeometry = new THREE.ConeGeometry(0.2, 3, 4);
-        const tailMaterial = new THREE.MeshBasicMaterial({
-            color: 0x00ffff,
-            transparent: true,
-            opacity: 0.4
-        });
-        
-        const tail = new THREE.Mesh(tailGeometry, tailMaterial);
-        tail.position.z = -1.5;
-        tail.rotation.x = Math.PI;
-        
-        cometGroup.add(comet);
-        cometGroup.add(tail);
-        
-        // Начальная позиция далеко от солнца
-        cometGroup.position.set(
-            (Math.random() - 0.5) * 100,
-            (Math.random() - 0.5) * 100,
-            (Math.random() - 0.5) * 100 - 50
+        const basePos = new THREE.Vector3(
+            Math.cos(angle) * 16,
+            Math.sin(angle) * 16,
+            (Math.random() - 0.5) * 10
         );
         
-        cometGroup.userData = {
-            velocity: new THREE.Vector3(
-                (Math.random() - 0.5) * 2,
-                (Math.random() - 0.5) * 2,
-                Math.random() * 3 + 1
-            ),
-            life: 0,
-            maxLife: 5 + Math.random() * 5
-        };
+        for (let i = 0; i < cmeCount; i++) {
+            const particleGeometry = new THREE.SphereGeometry(0.5 + Math.random() * 1, 6, 6);
+            const particleMaterial = new THREE.MeshBasicMaterial({
+                color: new THREE.Color().setHSL(Math.random() * 0.15 + 0.05, 1, 0.7),
+                transparent: true,
+                opacity: 0.7,
+                blending: THREE.AdditiveBlending
+            });
+            
+            const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+            particle.position.copy(basePos);
+            
+            // Немного разбросаем частицы
+            particle.position.x += (Math.random() - 0.5) * 3;
+            particle.position.y += (Math.random() - 0.5) * 3;
+            particle.position.z += (Math.random() - 0.5) * 3;
+            
+            // Направление от солнца
+            const direction = new THREE.Vector3().copy(basePos).normalize();
+            
+            particle.userData = {
+                velocity: direction.multiplyScalar(3 + Math.random() * 4),
+                life: 0,
+                maxLife: 5 + Math.random() * 5,
+                rotationSpeed: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.05,
+                    (Math.random() - 0.5) * 0.05,
+                    (Math.random() - 0.5) * 0.05
+                ),
+                orbitRadius: 15 + Math.random() * 5,
+                orbitAngle: Math.random() * Math.PI * 2
+            };
+            
+            cmeGroup.add(particle);
+        }
         
-        return cometGroup;
-    };
-    
-    // Массив комет
-    const comets = [];
-    for (let i = 0; i < 6; i++) {
-        const comet = createComet();
-        scene.add(comet);
-        comets.push(comet);
+        this.cmeParticles.push(cmeGroup);
+        this.sunGroup.add(cmeGroup);
     }
     
-    sunGroup.position.set(0, 0, -80);
-    sunGroup.userData = {
-        flares: flares,
-        cmeArray: cmeArray,
-        comets: comets,
-        photosphere: photosphere
-    };
-    
-    return sunGroup;
-};
-
-// Создаём текстуру шума для поверхности солнца
-function createNoiseTexture(width, height) {
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    
-    const imageData = ctx.createImageData(width, height);
-    const data = imageData.data;
-    
-    for (let i = 0; i < data.length; i += 4) {
-        const noise = Math.random();
-        data[i] = noise * 255;     // R
-        data[i + 1] = noise * 255; // G
-        data[i + 2] = noise * 255; // B
-        data[i + 3] = 255;         // A
+    createSolarWind() {
+        const windGroup = new THREE.Group();
+        const windCount = 30 + Math.floor(Math.random() * 50);
+        
+        for (let i = 0; i < windCount; i++) {
+            const particleGeometry = new THREE.SphereGeometry(0.1 + Math.random() * 0.3, 4, 4);
+            const particleMaterial = new THREE.MeshBasicMaterial({
+                color: new THREE.Color().setHSL(Math.random() * 0.1 + 0.05, 1, 0.8),
+                transparent: true,
+                opacity: 0.6,
+                blending: THREE.AdditiveBlending
+            });
+            
+            const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+            
+            // Позиция на поверхности солнца
+            const phi = Math.acos(2 * Math.random() - 1);
+            const theta = Math.random() * Math.PI * 2;
+            const radius = 15;
+            
+            particle.position.x = Math.sin(phi) * Math.cos(theta) * radius;
+            particle.position.y = Math.sin(phi) * Math.sin(theta) * radius;
+            particle.position.z = Math.cos(phi) * radius;
+            
+            // Направление от солнца с небольшим случайным отклонением
+            const direction = new THREE.Vector3(
+                Math.sin(phi) * Math.cos(theta) + (Math.random() - 0.5) * 0.3,
+                Math.sin(phi) * Math.sin(theta) + (Math.random() - 0.5) * 0.3,
+                Math.cos(phi) + (Math.random() - 0.5) * 0.3
+            ).normalize();
+            
+            particle.userData = {
+                velocity: direction.multiplyScalar(5 + Math.random() * 10),
+                life: 0,
+                maxLife: 3 + Math.random() * 4,
+                startPosition: particle.position.clone()
+            };
+            
+            windGroup.add(particle);
+        }
+        
+        this.solarWind.push(windGroup);
+        this.sunGroup.add(windGroup);
     }
     
-    ctx.putImageData(imageData, 0, 0);
+    update(delta, time) {
+        // Обновляем шейдер солнца
+        if (this.photosphere.material.uniforms) {
+            this.photosphere.material.uniforms.time.value = time;
+            this.photosphere.material.uniforms.turbulence.value = 1.0 + Math.sin(time * 0.5) * 0.3;
+        }
+        
+        // Вращение солнца
+        this.sunGroup.rotation.y += 0.001;
+        this.sunGroup.rotation.x += 0.0003;
+        
+        // Пульсация солнца
+        const pulse = 1 + Math.sin(time * 0.2) * 0.02;
+        this.core.scale.setScalar(pulse);
+        this.photosphere.scale.setScalar(pulse);
+        
+        // Обновляем частицы солнечной короны
+        const positions = this.particleGeometry.attributes.position.array;
+        const velocities = this.particleGeometry.attributes.velocity.array;
+        const sizes = this.particleGeometry.attributes.size.array;
+        const lifetimes = this.particleGeometry.attributes.lifetime.array;
+        
+        for (let i = 0; i < positions.length / 3; i++) {
+            const i3 = i * 3;
+            
+            // Обновляем позицию
+            positions[i3] += velocities[i3] * delta * 10;
+            positions[i3 + 1] += velocities[i3 + 1] * delta * 10;
+            positions[i3 + 2] += velocities[i3 + 2] * delta * 10;
+            
+            // Обновляем время жизни
+            lifetimes[i] += delta;
+            
+            // Если частица далеко от солнца, возвращаем её
+            const distance = Math.sqrt(
+                positions[i3] * positions[i3] + 
+                positions[i3 + 1] * positions[i3 + 1] + 
+                positions[i3 + 2] * positions[i3 + 2]
+            );
+            
+            if (distance > 30 || lifetimes[i] > 10) {
+                // Возвращаем частицу на поверхность солнца
+                const radius = 15 + Math.random() * 5;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                
+                positions[i3] = Math.sin(phi) * Math.cos(theta) * radius;
+                positions[i3 + 1] = Math.sin(phi) * Math.sin(theta) * radius;
+                positions[i3 + 2] = Math.cos(phi) * radius;
+                
+                // Случайная новая скорость
+                velocities[i3] = (Math.random() - 0.5) * 0.5;
+                velocities[i3 + 1] = (Math.random() - 0.5) * 0.5;
+                velocities[i3 + 2] = (Math.random() - 0.5) * 0.5;
+                
+                lifetimes[i] = 0;
+                sizes[i] = Math.random() * 3 + 1;
+            }
+        }
+        
+        this.particleGeometry.attributes.position.needsUpdate = true;
+        this.particleGeometry.attributes.size.needsUpdate = true;
+        this.particleGeometry.attributes.lifetime.needsUpdate = true;
+        
+        // Обновляем вспышки
+        for (let i = this.flares.length - 1; i >= 0; i--) {
+            const flare = this.flares[i];
+            flare.userData.life += delta;
+            
+            if (flare.userData.life > flare.userData.maxLife) {
+                // Удаляем старую вспышку
+                this.sunGroup.remove(flare);
+                this.flares.splice(i, 1);
+                
+                // Создаём новую с вероятностью
+                if (Math.random() < 0.3) {
+                    setTimeout(() => this.createSolarFlare(), Math.random() * 1000);
+                }
+            } else {
+                // Анимируем вспышку
+                const lifeRatio = flare.userData.life / flare.userData.maxLife;
+                const flareMesh = flare.children[0];
+                
+                // Рост вспышки
+                flareMesh.scale.y = 1 + lifeRatio * flare.userData.growth;
+                flareMesh.scale.x = 1 + lifeRatio * flare.userData.growth * 0.5;
+                
+                // Изменение прозрачности
+                flareMesh.material.opacity = 0.9 * (1 - lifeRatio);
+                
+                // Вращение
+                flare.rotation.z += flare.userData.rotationSpeed * delta;
+                
+                // Движение от солнца
+                flare.position.add(flare.userData.direction.clone().multiplyScalar(delta * 5));
+            }
+        }
+        
+        // Обновляем взрывы
+        for (let i = this.explosions.length - 1; i >= 0; i--) {
+            const explosion = this.explosions[i];
+            const particles = explosion.children;
+            let allDead = true;
+            
+            for (let j = particles.length - 1; j >= 0; j--) {
+                const particle = particles[j];
+                particle.userData.life += delta;
+                
+                if (particle.userData.life > particle.userData.maxLife) {
+                    explosion.remove(particle);
+                } else {
+                    allDead = false;
+                    const lifeRatio = particle.userData.life / particle.userData.maxLife;
+                    
+                    // Движение
+                    particle.position.x += particle.userData.velocity.x * delta;
+                    particle.position.y += particle.userData.velocity.y * delta;
+                    particle.position.z += particle.userData.velocity.z * delta;
+                    
+                    // Вращение
+                    particle.rotation.x += particle.userData.rotationSpeed.x * delta;
+                    particle.rotation.y += particle.userData.rotationSpeed.y * delta;
+                    particle.rotation.z += particle.userData.rotationSpeed.z * delta;
+                    
+                    // Затухание
+                    particle.material.opacity = 0.8 * (1 - lifeRatio);
+                    particle.scale.setScalar(1 - lifeRatio * 0.5);
+                }
+            }
+            
+            if (allDead || particles.length === 0) {
+                this.sunGroup.remove(explosion);
+                this.explosions.splice(i, 1);
+            }
+        }
+        
+        // Обновляем корональные выбросы
+        for (let i = this.cmeParticles.length - 1; i >= 0; i--) {
+            const cmeGroup = this.cmeParticles[i];
+            const particles = cmeGroup.children;
+            let allDead = true;
+            
+            for (let j = particles.length - 1; j >= 0; j--) {
+                const particle = particles[j];
+                particle.userData.life += delta;
+                
+                if (particle.userData.life > particle.userData.maxLife) {
+                    // Возвращаем частицу на орбиту солнца
+                    particle.userData.life = 0;
+                    particle.userData.orbitAngle += Math.PI * 0.1;
+                    
+                    const radius = particle.userData.orbitRadius;
+                    const angle = particle.userData.orbitAngle;
+                    particle.position.x = Math.cos(angle) * radius;
+                    particle.position.y = Math.sin(angle) * radius;
+                    particle.position.z = (Math.random() - 0.5) * 10;
+                    
+                    // Новая скорость
+                    const direction = new THREE.Vector3().copy(particle.position).normalize();
+                    particle.userData.velocity = direction.multiplyScalar(3 + Math.random() * 4);
+                } else {
+                    allDead = false;
+                    const lifeRatio = particle.userData.life / particle.userData.maxLife;
+                    
+                    // Движение по спирали от солнца
+                    particle.position.x += particle.userData.velocity.x * delta;
+                    particle.position.y += particle.userData.velocity.y * delta;
+                    particle.position.z += particle.userData.velocity.z * delta;
+                    
+                    // Добавляем вращение
+                    particle.rotation.x += particle.userData.rotationSpeed.x * delta;
+                    particle.rotation.y += particle.userData.rotationSpeed.y * delta;
+                    particle.rotation.z += particle.userData.rotationSpeed.z * delta;
+                    
+                    // Изменение размера и прозрачности
+                    particle.scale.setScalar(0.5 + lifeRatio * 1.5);
+                    particle.material.opacity = 0.7 * (1 - lifeRatio * 0.3);
+                }
+            }
+            
+            if (!allDead) {
+                allDead = false;
+            }
+        }
+        
+        // Обновляем солнечный ветер
+        for (let i = this.solarWind.length - 1; i >= 0; i--) {
+            const windGroup = this.solarWind[i];
+            const particles = windGroup.children;
+            let allDead = true;
+            
+            for (let j = particles.length - 1; j >= 0; j--) {
+                const particle = particles[j];
+                particle.userData.life += delta;
+                
+                if (particle.userData.life > particle.userData.maxLife) {
+                    windGroup.remove(particle);
+                } else {
+                    allDead = false;
+                    const lifeRatio = particle.userData.life / particle.userData.maxLife;
+                    
+                    // Движение от солнца
+                    particle.position.x += particle.userData.velocity.x * delta;
+                    particle.position.y += particle.userData.velocity.y * delta;
+                    particle.position.z += particle.userData.velocity.z * delta;
+                    
+                    // Затухание
+                    particle.material.opacity = 0.6 * (1 - lifeRatio);
+                }
+            }
+            
+            if (allDead || particles.length === 0) {
+                this.sunGroup.remove(windGroup);
+                this.solarWind.splice(i, 1);
+                
+                // Создаём новый солнечный ветер
+                if (Math.random() < 0.5) {
+                    setTimeout(() => this.createSolarWind(), Math.random() * 2000);
+                }
+            }
+        }
+    }
     
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
+    getSunGroup() {
+        return this.sunGroup;
+    }
     
-    return texture;
+    // Случайные события
+    triggerRandomEvent() {
+        const events = [
+            () => this.createSolarFlare(),
+            () => this.createCME(),
+            () => this.createSolarWind(),
+            () => {
+                // Большой взрыв
+                const explosionPos = new THREE.Vector3(
+                    (Math.random() - 0.5) * 20,
+                    (Math.random() - 0.5) * 20,
+                    (Math.random() - 0.5) * 20
+                ).normalize().multiplyScalar(16);
+                this.createExplosion(explosionPos, 20);
+            }
+        ];
+        
+        const event = events[Math.floor(Math.random() * events.length)];
+        event();
+    }
 }
 
-const sun = createRealisticSun();
-scene.add(sun);
+// Создаём систему солнца
+const solarSystem = new SolarSystem();
+scene.add(solarSystem.getSunGroup());
+
+// Запускаем случайные события
+setInterval(() => {
+    if (Math.random() < 0.7) { // 70% вероятность события
+        solarSystem.triggerRandomEvent();
+    }
+}, 1000 + Math.random() * 3000);
 
 // Радужные лучи от призмы
 const createRainbowLights = () => {
@@ -355,15 +698,15 @@ const createRainbowLights = () => {
     colors.forEach((c, i) => {
         const light = new THREE.SpotLight(c, 25, 150, Math.PI/3, 0.2, 1);
         const angle = (i / colors.length) * Math.PI * 2;
-        const radius = 20;
+        const radius = 25;
         
         light.position.x = Math.sin(angle) * radius;
-        light.position.y = Math.cos(angle) * radius * 0.7;
-        light.position.z = 5;
+        light.position.y = Math.cos(angle) * radius * 0.6;
+        light.position.z = 8;
         
         light.target.position.copy(prism.position);
-        light.penumbra = 0.8;
-        light.decay = 1.2;
+        light.penumbra = 0.9;
+        light.decay = 1.1;
         
         scene.add(light);
         scene.add(light.target);
@@ -375,16 +718,16 @@ const createRainbowLights = () => {
 
 const rainbowLights = createRainbowLights();
 
-// Постобработка с сильным bloom эффектом для солнца
+// Постобработка
 const composer = new EffectComposer(renderer);
 const renderPass = new RenderPass(scene, camera);
 composer.addPass(renderPass);
 
 const bloomPass = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    2.0, // strength - увеличен для солнца
-    0.8, // radius
-    0.9  // threshold
+    2.5, // Сильный bloom для солнца
+    0.9, // Радиус
+    0.8  // Порог
 );
 composer.addPass(bloomPass);
 
@@ -402,98 +745,20 @@ function animate() {
     prism.rotation.x += 0.001;
     
     // Пульсация призмы
-    prism.scale.setScalar(1 + Math.sin(time * 0.5) * 0.03);
+    const pulse = 1 + Math.sin(time * 0.4) * 0.04;
+    prism.scale.setScalar(pulse);
     
     // Анимация иридесценции
-    prism.material.iridescence = 0.8 + Math.sin(time * 0.3) * 0.4;
-    prism.material.sheenColor.setHSL((time * 0.08) % 1, 0.9, 0.6);
+    prism.material.iridescence = 0.8 + Math.sin(time * 0.25) * 0.5;
+    prism.material.sheenColor.setHSL((time * 0.06) % 1, 0.9, 0.6);
     
-    // Анимация солнца
-    if (sun.userData.photosphere.material.uniforms) {
-        sun.userData.photosphere.material.uniforms.time.value = time;
-    }
-    
-    sun.rotation.y += 0.001;
-    sun.rotation.x += 0.0005;
-    
-    // Пульсация ядра солнца
-    const pulse = 1 + Math.sin(time * 0.3) * 0.05;
-    sun.scale.setScalar(pulse);
-    
-    // Анимация солнечных вспышек
-    sun.userData.flares.forEach((flare, i) => {
-        flare.userData.life -= delta;
-        
-        if (flare.userData.life <= 0) {
-            // Пересоздаём вспышку
-            sun.remove(flare);
-            const newFlare = createSolarFlare();
-            sun.add(newFlare);
-            sun.userData.flares[i] = newFlare;
-        } else {
-            // Анимация существующей вспышки
-            flare.rotation.z += flare.userData.rotationSpeed;
-            const scale = flare.userData.life / flare.userData.maxLife;
-            flare.scale.setScalar(scale);
-            flare.children[0].material.opacity = scale * 0.8;
-        }
-    });
-    
-    // Анимация корональных выбросов
-    sun.userData.cmeArray.forEach((cme, i) => {
-        cme.userData.life += delta;
-        cme.userData.distance += cme.userData.speed * delta;
-        
-        cme.position.x = Math.cos(cme.userData.angle + cme.userData.life * 0.1) * cme.userData.distance;
-        cme.position.y = Math.sin(cme.userData.angle + cme.userData.life * 0.1) * cme.userData.distance;
-        
-        cme.scale.setScalar(1 + cme.userData.life * 0.1);
-        cme.children[0].material.opacity = 0.6 - cme.userData.life * 0.05;
-        
-        if (cme.userData.distance > 60 || cme.children[0].material.opacity <= 0) {
-            // Пересоздаём выброс
-            sun.remove(cme);
-            const newCME = createCoronalMassEjection();
-            sun.add(newCME);
-            sun.userData.cmeArray[i] = newCME;
-        }
-    });
-    
-    // Анимация комет
-    sun.userData.comets.forEach((comet, i) => {
-        comet.userData.life += delta;
-        
-        // Двигаем комету
-        comet.position.x += comet.userData.velocity.x * delta;
-        comet.position.y += comet.userData.velocity.y * delta;
-        comet.position.z += comet.userData.velocity.z * delta;
-        
-        // Поворачиваем хвост против движения
-        const tail = comet.children[1];
-        tail.lookAt(
-            comet.position.x - comet.userData.velocity.x,
-            comet.position.y - comet.userData.velocity.y,
-            comet.position.z - comet.userData.velocity.z
-        );
-        
-        // Уменьшаем непрозрачность со временем
-        const lifeRatio = 1 - (comet.userData.life / comet.userData.maxLife);
-        comet.children[0].material.opacity = lifeRatio * 0.8;
-        tail.material.opacity = lifeRatio * 0.4;
-        
-        if (comet.userData.life > comet.userData.maxLife) {
-            // Пересоздаём комету
-            scene.remove(comet);
-            const newComet = createComet();
-            scene.add(newComet);
-            sun.userData.comets[i] = newComet;
-        }
-    });
+    // Обновляем солнце
+    solarSystem.update(delta, time);
     
     // Анимация радужных лучей
     rainbowLights.forEach((item, i) => {
-        item.light.intensity = 20 + Math.sin(time * 1.5 + i) * 15;
-        const hue = (time * 0.03 + i * 0.125) % 1;
+        item.light.intensity = 20 + Math.sin(time * 1.2 + i) * 15;
+        const hue = (time * 0.025 + i * 0.125) % 1;
         item.light.color.setHSL(hue, 1, 0.7);
     });
     
@@ -520,28 +785,28 @@ window.addEventListener('resize', () => {
     // Оптимизация для iPhone
     if (width < 768 && height > width) {
         camera.position.z = 45;
-        camera.position.y = 5;
-        prism.position.z = 12;
+        camera.position.y = 3;
+        prism.position.z = 18;
     } else if (width < 768) {
         camera.position.z = 35;
-        camera.position.y = 3;
-        prism.position.z = 8;
+        camera.position.y = 2;
+        prism.position.z = 12;
     } else {
         camera.position.z = 40;
-        camera.position.y = 8;
-        prism.position.z = 10;
+        camera.position.y = 5;
+        prism.position.z = 15;
     }
 });
 
-// Улучшенная пасхалка с плавными анимациями
+// Улучшенная пасхалка
 let clicks = 0;
 let timer = null;
 const secretMessages = [
-    "ПРОЗРАЧНОСТЬ",
-    "СВЕТ И ТЕНЬ",
-    "БЕСКОНЕЧНОСТЬ",
-    "ВНУТРИ РАДУГИ",
-    "ЗЕРКАЛО ДУШИ"
+    "СОЛНЕЧНЫЙ ВЗРЫВ",
+    "ТЕРМОЯДЕРНЫЙ СИНТЕЗ",
+    "ПЛАЗМЕННЫЙ ВИХРЬ",
+    "ЗВЁЗДНАЯ ЭНЕРГИЯ",
+    "КОСМИЧЕСКИЙ ОГОНЬ"
 ];
 
 canvas.addEventListener('click', (e) => {
@@ -549,7 +814,7 @@ canvas.addEventListener('click', (e) => {
     clearTimeout(timer);
     timer = setTimeout(() => clicks = 0, 3000);
     
-    if (clips >= 5) {
+    if (clicks >= 5) {
         clicks = 0;
         const messageIndex = Math.floor(Math.random() * secretMessages.length);
         
@@ -559,15 +824,14 @@ canvas.addEventListener('click', (e) => {
             position: fixed;
             inset: 0;
             background: linear-gradient(135deg, 
-                rgba(0, 0, 0, 0.95) 0%, 
-                rgba(10, 5, 20, 0.98) 50%, 
-                rgba(20, 10, 40, 0.95) 100%);
+                rgba(0, 0, 0, 0.98) 0%, 
+                rgba(20, 5, 10, 0.99) 100%);
             z-index: 9999;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            backdrop-filter: blur(40px);
+            backdrop-filter: blur(50px);
             opacity: 0;
             transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         `;
@@ -591,15 +855,15 @@ canvas.addEventListener('click', (e) => {
         
         // Адаптивный размер текста
         if (window.innerWidth < 768) {
-            message.style.fontSize = 'clamp(44px, 14vw, 75px)';
+            message.style.fontSize = 'clamp(36px, 12vw, 65px)';
             message.style.padding = '30px 20px';
         } else if (window.innerWidth < 1024) {
-            message.style.fontSize = 'clamp(55px, 11vw, 90px)';
+            message.style.fontSize = 'clamp(48px, 10vw, 80px)';
         } else {
-            message.style.fontSize = 'clamp(70px, 9vw, 130px)';
+            message.style.fontSize = 'clamp(60px, 8vw, 110px)';
         }
         
-        // Градиент как на главной
+        // Градиент
         message.style.background = `
             linear-gradient(
                 90deg,
@@ -625,7 +889,7 @@ canvas.addEventListener('click', (e) => {
         const subtitle = document.createElement('div');
         subtitle.style.cssText = `
             color: rgba(255, 255, 255, 0.6);
-            font-size: clamp(13px, 2.5vw, 16px);
+            font-size: clamp(12px, 2vw, 15px);
             letter-spacing: 3px;
             text-transform: uppercase;
             font-weight: 400;
@@ -671,40 +935,22 @@ canvas.addEventListener('click', (e) => {
         
         // Автозакрытие через 7 секунд
         setTimeout(closeEasterEgg, 7000);
-        
-        // Звуковой эффект
-        try {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(330, audioContext.currentTime);
-            oscillator.frequency.exponentialRampToValueAtTime(660, audioContext.currentTime + 0.3);
-            
-            gainNode.gain.setValueAtTime(0.08, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.6);
-            
-            oscillator.start();
-            oscillator.stop(audioContext.currentTime + 0.6);
-        } catch (e) {}
     }
+});
+
+// Отключаем все жесты масштабирования и скролла
+document.addEventListener('touchstart', function(e) {
+    if (e.touches.length > 1) {
+        e.preventDefault();
+    }
+}, { passive: false });
+
+document.addEventListener('gesturestart', function(e) {
+    e.preventDefault();
 });
 
 // Оптимизация для iOS
 if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
     renderer.setPixelRatio(1);
-    
-    // Упрощаем геометрию для лучшей производительности
     prism.geometry = new THREE.IcosahedronGeometry(prismSize, 2);
-    
-    // Уменьшаем количество лучей
-    rainbowLights.forEach((item, i) => {
-        if (i > 3) {
-            item.light.visible = false;
-        }
-    });
 }
