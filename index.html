@@ -81,9 +81,30 @@
       font-weight: 600;
     }
 
-    @keyframes flow {
-      0%, 100% { background-position: 0% 50%; }
-      50%      { background-position: 100% 50%; }
+    /* Индикатор статуса */
+    .status-indicator {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      z-index: 1000;
+      transition: all 0.3s ease;
+      box-shadow: 0 0 10px currentColor;
+    }
+    .status-indicator.red {
+      background-color: #ff3366;
+      box-shadow: 0 0 15px #ff3366;
+    }
+    .status-indicator.green {
+      background-color: #00ff88;
+      box-shadow: 0 0 15px #00ff88;
+    }
+    .status-indicator.yellow {
+      background-color: #ffcc00;
+      box-shadow: 0 0 15px #ffcc00;
+      animation: pulse 2s infinite;
     }
 
     .loading-message {
@@ -96,44 +117,23 @@
     .hidden-until-loaded { display:none; }
     .loaded .hidden-until-loaded { display:block; }
 
-    /* ---------- FALLBACK РЕЖИМ ---------- */
-    #fallback {
-      position:fixed;
-      inset:0;
-      display:grid;
-      place-items:center;
-      background: linear-gradient(140deg, #000000, #1a1a33, #000000);
-      background-size: 400% 400%;
-      animation: fallbackFlow 18s ease infinite;
-      z-index: 999;
-      text-align:center;
-      padding:20px;
-      color:#fff;
-      font-size: clamp(30px, 10vw, 80px);
-      font-weight: 900;
-      letter-spacing: -0.03em;
-      opacity:0;
-      pointer-events:none;
-      transition: opacity 0.6s ease;
+    @keyframes flow {
+      0%, 100% { background-position: 0% 50%; }
+      50%      { background-position: 100% 50%; }
     }
 
-    @keyframes fallbackFlow {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-
-    #fallback.show {
-      opacity:1;
-      pointer-events:all;
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
     }
   </style>
 </head>
 
 <body>
   <div class="loading-message">Загрузка 3D-графики...</div>
-
-  <div id="fallback">#6medi[v**^mknt\w!&{ps;fp5+__&lt;~</div>
+  
+  <!-- Индикатор статуса -->
+  <div class="status-indicator yellow" id="statusIndicator"></div>
 
   <canvas id="canvas" class="hidden-until-loaded"></canvas>
 
@@ -150,155 +150,248 @@
   <script>
     'use strict';
 
+    // Элементы статуса
+    const statusIndicator = document.getElementById('statusIndicator');
+    const loadingMessage = document.querySelector('.loading-message');
+
+    // Функция обновления статуса
+    function updateStatus(color, message = '') {
+      statusIndicator.className = 'status-indicator ' + color;
+      if (message && loadingMessage) {
+        loadingMessage.textContent = message;
+      }
+    }
+
     // Проверка WebGL поддержки
     function isWebGLSupported() {
       try {
         const canvas = document.createElement('canvas');
-        return !!(canvas.getContext('webgl') || canvas.getContext('experimental-webgl'));
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (!gl) {
+          updateStatus('red', 'WebGL не поддерживается вашим браузером');
+          return false;
+        }
+        return true;
       } catch (e) {
+        updateStatus('red', 'Ошибка проверки WebGL');
         return false;
       }
     }
 
-    const fallback = document.getElementById("fallback");
-
-    /** Если WebGL НЕ работает → включаем fallback **/
-    if (!isWebGLSupported()) {
-      document.querySelector(".loading-message").style.display = "none";
-      fallback.classList.add("show");
-    }
-
+    // Массив CDN для Three.js
     const threeJsCDNs = [
       'https://cdnjs.cloudflare.com/ajax/libs/three.js/r181/three.min.js',
       'https://unpkg.com/three@0.181.2/build/three.min.js',
-      'https://cdn.jsdelivr.net/npm/three@0.181.2/build/three.min.js',
-      'https://threejs.org/build/three.min.js'
+      'https://cdn.jsdelivr.net/npm/three@0.181.2/build/three.min.js'
     ];
 
     let isThreeLoaded = false;
     let currentCDNIndex = 0;
+    let loadAttempts = 0;
+    const maxLoadAttempts = 3;
 
-    function activateFallback() {
-      fallback.classList.add("show");
-    }
-
-    function showError() {
-      document.querySelector('.loading-message').innerText =
-        'Ошибка загрузки Three.js — включён простой режим';
-      activateFallback();
-    }
-
+    // Функция загрузки Three.js
     function loadThreeJs() {
-      if (!isWebGLSupported()) return; // сразу fallback
-      if (currentCDNIndex >= threeJsCDNs.length) return showError();
+      if (!isWebGLSupported()) {
+        return;
+      }
+
+      if (loadAttempts >= maxLoadAttempts) {
+        updateStatus('red', 'Не удалось загрузить Three.js');
+        return;
+      }
+
+      if (currentCDNIndex >= threeJsCDNs.length) {
+        currentCDNIndex = 0;
+        loadAttempts++;
+      }
+
+      updateStatus('yellow', `Загрузка Three.js (попытка ${loadAttempts + 1})...`);
 
       const script = document.createElement('script');
       script.src = threeJsCDNs[currentCDNIndex];
-      script.onload = () =>
-        typeof THREE !== 'undefined'
-          ? initApp()
-          : (currentCDNIndex++, loadThreeJs());
-      script.onerror = () => { currentCDNIndex++; loadThreeJs(); };
+      
+      script.onload = () => {
+        if (typeof THREE !== 'undefined') {
+          updateStatus('green', 'Three.js загружен');
+          setTimeout(() => {
+            initApp();
+          }, 500);
+        } else {
+          currentCDNIndex++;
+          setTimeout(loadThreeJs, 1000);
+        }
+      };
+      
+      script.onerror = () => {
+        currentCDNIndex++;
+        setTimeout(loadThreeJs, 1000);
+      };
+      
       document.head.appendChild(script);
     }
 
+    // Основная функция инициализации
     function initApp() {
       if (isThreeLoaded) return;
       isThreeLoaded = true;
 
-      document.querySelector('.loading-message').style.display = 'none';
-      document.body.classList.add('loaded');
+      try {
+        document.querySelector('.loading-message').style.display = 'none';
+        document.body.classList.add('loaded');
 
-      const canvas = document.getElementById('canvas');
-      const renderer = new THREE.WebGLRenderer({
-        canvas,
-        antialias: true,
-        alpha: true,
-        powerPreference: "high-performance"
-      });
-
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.outputColorSpace = THREE.SRGBColorSpace;
-
-      const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(56, window.innerWidth / window.innerHeight, 0.1, 100);
-      camera.position.z = window.innerWidth < 768 ? 14 : 11.5;
-
-      const envCanvas = document.createElement('canvas');
-      envCanvas.width = envCanvas.height = 1024;
-      const ctx = envCanvas.getContext('2d');
-      const grad = ctx.createRadialGradient(512, 512, 0, 512, 512, 512);
-      grad.addColorStop(0, '#ffffff');
-      grad.addColorStop(1, '#000814');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, 1024, 1024);
-
-      const envTexture = new THREE.CanvasTexture(envCanvas);
-      envTexture.mapping = THREE.EquirectangularReflectionMapping;
-      scene.environment = envTexture;
-      scene.background = new THREE.Color(0x000000);
-
-      const size = Math.min(window.innerWidth, window.innerHeight) * 0.52 / 100;
-      const geometry = new THREE.TetrahedronGeometry(size, 0);
-
-      const material = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        roughness: 0,
-        metalness: 0,
-        transmission: 0.99,
-        thickness: 6.5,
-        ior: 1.5,
-        clearcoat: 1,
-        emissive: new THREE.Color(0x0088ff),
-        emissiveIntensity: 0.9,
-        envMapIntensity: 25
-      });
-
-      const prism = new THREE.Mesh(geometry, material);
-      scene.add(prism);
-
-      const colors = [0x00ffff, 0xff0088, 0x88ff44];
-      colors.forEach((c, i) => {
-        const light = new THREE.PointLight(c, 35, 100);
-        light.position.set(
-          Math.sin(i * 2.4) * 24,
-          Math.cos(i * 2.4) * 14,
-          18
-        );
-        scene.add(light);
-      });
-
-      let taps = 0;
-      canvas.addEventListener('click', () => {
-        if (++taps === 3) {
-          const e = document.getElementById('easter');
-          e.classList.add('show');
-          taps = 0;
-          setTimeout(() => e.classList.remove('show'), 3200);
+        const canvas = document.getElementById('canvas');
+        
+        // Проверка контекста WebGL
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (!gl) {
+          throw new Error('Не удалось получить WebGL контекст');
         }
-      });
 
-      const clock = new THREE.Clock();
-      function animate() {
-        requestAnimationFrame(animate);
-        const t = clock.getElapsedTime();
-        prism.rotation.y = t * 0.32;
-        prism.rotation.x = t * 0.19;
-        renderer.render(scene, camera);
+        const renderer = new THREE.WebGLRenderer({
+          canvas,
+          antialias: true,
+          alpha: true,
+          powerPreference: "high-performance"
+        });
+
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(56, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.z = window.innerWidth < 768 ? 14 : 11.5;
+
+        // Создание текстуры окружения
+        const envCanvas = document.createElement('canvas');
+        envCanvas.width = envCanvas.height = 1024;
+        const ctx = envCanvas.getContext('2d');
+        if (!ctx) {
+          throw new Error('Не удалось получить 2D контекст');
+        }
+        
+        const grad = ctx.createRadialGradient(512, 512, 0, 512, 512, 512);
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(1, '#000814');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 1024, 1024);
+
+        const envTexture = new THREE.CanvasTexture(envCanvas);
+        envTexture.mapping = THREE.EquirectangularReflectionMapping;
+        scene.environment = envTexture;
+        scene.background = new THREE.Color(0x000000);
+
+        // Создание призмы
+        const size = Math.min(window.innerWidth, window.innerHeight) * 0.52 / 100;
+        const geometry = new THREE.TetrahedronGeometry(size, 0);
+
+        const material = new THREE.MeshPhysicalMaterial({
+          color: 0xffffff,
+          roughness: 0,
+          metalness: 0,
+          transmission: 0.99,
+          thickness: 6.5,
+          ior: 1.5,
+          clearcoat: 1,
+          emissive: new THREE.Color(0x0088ff),
+          emissiveIntensity: 0.9,
+          envMapIntensity: 25
+        });
+
+        const prism = new THREE.Mesh(geometry, material);
+        scene.add(prism);
+
+        // Добавление источников света
+        const colors = [0x00ffff, 0xff0088, 0x88ff44];
+        colors.forEach((c, i) => {
+          const light = new THREE.PointLight(c, 35, 100);
+          light.position.set(
+            Math.sin(i * 2.4) * 24,
+            Math.cos(i * 2.4) * 14,
+            18
+          );
+          scene.add(light);
+        });
+
+        // Обработка кликов для пасхалки
+        let taps = 0;
+        let lastTapTime = 0;
+        canvas.addEventListener('click', (e) => {
+          const currentTime = Date.now();
+          if (currentTime - lastTapTime > 500) {
+            taps = 0;
+          }
+          
+          taps++;
+          lastTapTime = currentTime;
+          
+          if (taps === 3) {
+            const easter = document.getElementById('easter');
+            easter.classList.add('show');
+            taps = 0;
+            setTimeout(() => {
+              easter.classList.remove('show');
+            }, 3200);
+          }
+        });
+
+        // Анимация
+        const clock = new THREE.Clock();
+        function animate() {
+          requestAnimationFrame(animate);
+          const t = clock.getElapsedTime();
+          prism.rotation.y = t * 0.32;
+          prism.rotation.x = t * 0.19;
+          renderer.render(scene, camera);
+        }
+        animate();
+
+        // Обработка изменения размера окна
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+          clearTimeout(resizeTimeout);
+          resizeTimeout = setTimeout(() => {
+            const w = window.innerWidth, h = window.innerHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+            camera.position.z = w < 768 ? 14 : 11.5;
+          }, 100);
+        });
+
+        updateStatus('green');
+
+      } catch (error) {
+        console.error('Ошибка инициализации:', error);
+        updateStatus('red', 'Ошибка инициализации 3D');
+        loadingMessage.style.display = 'grid';
+        loadingMessage.textContent = 'Ошибка: ' + error.message;
       }
-      animate();
-
-      window.addEventListener('resize', () => {
-        const w = window.innerWidth, h = window.innerHeight;
-        camera.aspect = w / h;
-        camera.updateProjectionMatrix();
-        renderer.setSize(w, h);
-        camera.position.z = w < 768 ? 14 : 11.5;
-      });
     }
 
-    window.addEventListener('DOMContentLoaded', loadThreeJs);
+    // Обработчик ошибок
+    window.addEventListener('error', (event) => {
+      console.error('Глобальная ошибка:', event.error);
+      updateStatus('red', 'Произошла ошибка');
+      if (loadingMessage) {
+        loadingMessage.textContent = 'Произошла ошибка в приложении';
+      }
+    });
+
+    // Запуск при загрузке DOM
+    window.addEventListener('DOMContentLoaded', () => {
+      updateStatus('yellow', 'Проверка поддержки WebGL...');
+      setTimeout(loadThreeJs, 100);
+    });
+
+    // Обновление статуса при видимости страницы
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && !isThreeLoaded) {
+        updateStatus('yellow', 'Возобновление загрузки...');
+      }
+    });
+
   </script>
 </body>
 </html>
