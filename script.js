@@ -2,7 +2,6 @@ import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
 import { EffectComposer } from 'https://unpkg.com/three@0.168.0/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'https://unpkg.com/three@0.168.0/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'https://unpkg.com/three@0.168.0/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { FilmPass } from 'https://unpkg.com/three@0.168.0/examples/jsm/postprocessing/FilmPass.js';
 
 const canvas = document.getElementById('canvas');
 const renderer = new THREE.WebGLRenderer({
@@ -20,106 +19,137 @@ renderer.toneMappingExposure = 1.2;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
-camera.position.z = 25;
+camera.position.z = 30;
+camera.position.y = 5;
 
-// Liquid Glass Prism - теперь икосаэдр для более гладкой поверхности
-const size = Math.min(window.innerWidth, window.innerHeight) * 0.015; // Увеличен размер
+// Размер призмы адаптивный для всех устройств
+const getPrismSize = () => {
+    const screenSize = Math.min(window.innerWidth, window.innerHeight);
+    if (screenSize < 768) return screenSize * 0.02; // Мобильные
+    if (screenSize < 1024) return screenSize * 0.015; // Планшеты
+    return screenSize * 0.012; // Десктоп
+};
+
+// Liquid Glass Prism
+const prismSize = getPrismSize();
 const prism = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(size, 3), // Более гладкая форма
+    new THREE.IcosahedronGeometry(prismSize, 3),
     new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         metalness: 0.1,
         roughness: 0,
-        transmission: 0.97,
-        thickness: 12,
+        transmission: 0.98,
+        thickness: 15,
         clearcoat: 1,
         clearcoatRoughness: 0,
-        ior: 1.8,
-        envMapIntensity: 20,
-        specularIntensity: 1,
-        sheen: 0.5,
-        sheenRoughness: 0.3,
-        sheenColor: 0xffaa88,
+        ior: 2.0,
+        envMapIntensity: 25,
+        specularIntensity: 1.5,
+        sheen: 0.8,
+        sheenRoughness: 0.2,
+        sheenColor: 0xffccaa,
         iridescence: 1,
-        iridescenceIOR: 1.3,
-        iridescenceThicknessRange: [100, 400]
+        iridescenceIOR: 1.5,
+        iridescenceThicknessRange: [150, 500]
     })
 );
-prism.position.y = -1;
+prism.position.y = 0;
 scene.add(prism);
 
 // Создаем окружение для отражений
 const cubeTextureLoader = new THREE.CubeTextureLoader();
+cubeTextureLoader.setPath('https://threejs.org/examples/textures/cube/skybox/');
 const envMap = cubeTextureLoader.load([
-    'https://threejs.org/examples/textures/cube/skybox/px.jpg',
-    'https://threejs.org/examples/textures/cube/skybox/nx.jpg',
-    'https://threejs.org/examples/textures/cube/skybox/py.jpg',
-    'https://threejs.org/examples/textures/cube/skybox/ny.jpg',
-    'https://threejs.org/examples/textures/cube/skybox/pz.jpg',
-    'https://threejs.org/examples/textures/cube/skybox/nz.jpg'
+    'px.jpg', 'nx.jpg',
+    'py.jpg', 'ny.jpg',
+    'pz.jpg', 'nz.jpg'
 ]);
 scene.environment = envMap;
-scene.background = envMap;
+scene.background = new THREE.Color(0x000000);
 prism.material.envMap = envMap;
 
-// Освещение
-scene.add(new THREE.AmbientLight(0x404080, 4));
-const mainLight = new THREE.DirectionalLight(0xffffff, 25);
-mainLight.position.set(-15, 20, 25);
+// Освещение - улучшенное
+scene.add(new THREE.AmbientLight(0x4040a0, 5));
+const mainLight = new THREE.DirectionalLight(0xffffff, 30);
+mainLight.position.set(-20, 30, 30);
 scene.add(mainLight);
 
-const fillLight = new THREE.HemisphereLight(0x4488ff, 0x002244, 3);
+const fillLight = new THREE.HemisphereLight(0x4488ff, 0x002244, 4);
 scene.add(fillLight);
 
-// Радужные лучи с улучшениями
-const colors = [0xff0000, 0xff6600, 0xffff00, 0x00ff00, 0x0088ff, 0x6600ff, 0xff00ff];
-const rainbowLights = [];
-colors.forEach((c, i) => {
-    const light = new THREE.SpotLight(c, 15, 100, Math.PI/5, 0.3, 2);
-    light.position.copy(prism.position);
-    const angle = (i / colors.length) * Math.PI * 2;
-    const radius = 8;
-    light.position.x += Math.sin(angle) * radius;
-    light.position.y += Math.cos(angle) * radius * 0.6;
-    light.position.z += Math.cos(angle) * radius * 0.4;
-    light.target.position.copy(prism.position);
-    light.target.position.y -= 10;
-    scene.add(light);
-    scene.add(light.target);
-    light.penumbra = 0.5;
-    light.decay = 2;
-    rainbowLights.push(light);
-});
+// Эффект звезды/солнца с лучами
+const createSunEffect = () => {
+    const sunGroup = new THREE.Group();
+    
+    // Центральное свечение
+    const sunGeometry = new THREE.SphereGeometry(8, 32, 32);
+    const sunMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffaa44,
+        transparent: true,
+        opacity: 0.8
+    });
+    const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+    sunGroup.add(sun);
+    
+    // Лучи солнца
+    const rayCount = 16;
+    const rayLength = 25;
+    const rayGeometry = new THREE.ConeGeometry(0.5, rayLength, 4);
+    const rayMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff6600,
+        transparent: true,
+        opacity: 0.6,
+        side: THREE.DoubleSide
+    });
+    
+    for (let i = 0; i < rayCount; i++) {
+        const ray = new THREE.Mesh(rayGeometry, rayMaterial);
+        const angle = (i / rayCount) * Math.PI * 2;
+        
+        ray.rotation.z = angle;
+        ray.rotation.x = Math.PI / 2;
+        
+        // Позиционируем лучи вокруг солнца
+        ray.position.x = Math.sin(angle) * 6;
+        ray.position.y = Math.cos(angle) * 6;
+        
+        sunGroup.add(ray);
+    }
+    
+    sunGroup.position.set(0, 0, -50);
+    return sunGroup;
+};
 
-// Частицы вокруг призмы
-const particleCount = 200;
-const particles = new THREE.Group();
-const particleGeometry = new THREE.SphereGeometry(0.05, 8, 8);
-const particleMaterial = new THREE.MeshBasicMaterial({ 
-    color: 0x88ffff,
-    transparent: true,
-    opacity: 0.6
-});
+const sun = createSunEffect();
+scene.add(sun);
 
-for (let i = 0; i < particleCount; i++) {
-    const particle = new THREE.Mesh(particleGeometry, particleMaterial);
-    const radius = size + 1 + Math.random() * 3;
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.random() * Math.PI;
+// Радужные лучи от призмы
+const createRainbowLights = () => {
+    const colors = [0xff0000, 0xff6600, 0xffff00, 0x00ff00, 0x0088ff, 0x6600ff, 0xff00ff];
+    const lights = [];
     
-    particle.position.x = radius * Math.sin(phi) * Math.cos(theta);
-    particle.position.y = radius * Math.sin(phi) * Math.sin(theta);
-    particle.position.z = radius * Math.cos(phi);
+    colors.forEach((c, i) => {
+        const light = new THREE.SpotLight(c, 20, 120, Math.PI/4, 0.3, 1.5);
+        const angle = (i / colors.length) * Math.PI * 2;
+        const radius = 15;
+        
+        light.position.x = Math.sin(angle) * radius;
+        light.position.y = Math.cos(angle) * radius * 0.8;
+        light.position.z = 10;
+        
+        light.target.position.copy(prism.position);
+        light.penumbra = 0.7;
+        light.decay = 1.5;
+        
+        scene.add(light);
+        scene.add(light.target);
+        lights.push({ light, angle });
+    });
     
-    particle.userData = {
-        radius: radius,
-        speed: 0.001 + Math.random() * 0.003,
-        angle: Math.random() * Math.PI * 2
-    };
-    
-    particles.add(particle);
-}
-prism.add(particles);
+    return lights;
+};
+
+const rainbowLights = createRainbowLights();
 
 // Постобработка
 const composer = new EffectComposer(renderer);
@@ -128,14 +158,11 @@ composer.addPass(renderPass);
 
 const bloomPass = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    1.2, // strength
-    0.4, // radius
-    0.8  // threshold
+    1.5, // strength
+    0.6, // radius
+    0.9  // threshold
 );
 composer.addPass(bloomPass);
-
-const filmPass = new FilmPass(0.15, 0.5, 2048, false);
-composer.addPass(filmPass);
 
 // Анимация
 const clock = new THREE.Clock();
@@ -147,63 +174,98 @@ function animate() {
     time += delta;
     
     // Плавное вращение призмы
-    prism.rotation.y += 0.004;
-    prism.rotation.x += 0.0015;
-    prism.rotation.z = Math.sin(time * 0.3) * 0.05;
+    prism.rotation.y += 0.003;
+    prism.rotation.x += 0.001;
+    prism.rotation.z = Math.sin(time * 0.2) * 0.03;
+    
+    // Пульсация призмы
+    const pulse = 1 + Math.sin(time * 0.8) * 0.05;
+    prism.scale.setScalar(pulse);
     
     // Анимация иридесценции
-    prism.material.iridescence = 0.8 + Math.sin(time * 0.5) * 0.2;
+    prism.material.iridescence = 0.7 + Math.sin(time * 0.4) * 0.3;
+    prism.material.sheenColor.setHSL((time * 0.1) % 1, 0.8, 0.7);
     
-    // Анимация частиц
-    particles.children.forEach(particle => {
-        particle.userData.angle += particle.userData.speed;
-        particle.position.x = particle.userData.radius * Math.sin(particle.userData.angle) * Math.cos(time);
-        particle.position.y = particle.userData.radius * Math.sin(particle.userData.angle) * Math.sin(time);
-        particle.position.z = particle.userData.radius * Math.cos(particle.userData.angle);
-        
-        // Пульсация частиц
-        particle.scale.setScalar(0.8 + Math.sin(time * 2 + particle.userData.angle) * 0.3);
+    // Анимация солнца
+    sun.rotation.z += 0.001;
+    const sunPulse = 1 + Math.sin(time * 0.5) * 0.1;
+    sun.scale.setScalar(sunPulse);
+    
+    // Анимация лучей солнца
+    sun.children.forEach((child, i) => {
+        if (i > 0) { // Пропускаем центральную сферу
+            child.scale.y = 1 + Math.sin(time * 2 + i) * 0.3;
+            child.material.opacity = 0.4 + Math.sin(time * 1.5 + i) * 0.2;
+        }
     });
     
     // Анимация радужных лучей
-    rainbowLights.forEach((light, i) => {
-        light.intensity = 12 + Math.sin(time * 2 + i) * 6;
-        light.color.setHSL((time * 0.1 + i * 0.2) % 1, 1, 0.7);
+    rainbowLights.forEach((item, i) => {
+        item.light.intensity = 15 + Math.sin(time * 2 + i) * 10;
+        const hue = (time * 0.05 + i * 0.1) % 1;
+        item.light.color.setHSL(hue, 1, 0.8);
     });
     
     composer.render();
 }
 animate();
 
-// Интерактивность - вращение призмы при движении мыши
-let mouseX = 0, mouseY = 0;
-window.addEventListener('mousemove', (e) => {
-    mouseX = (e.clientX / window.innerWidth) * 2 - 1;
-    mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
-});
-
-// Ресайз
+// Адаптивный ресайз для всех устройств
 window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    composer.setSize(window.innerWidth, window.innerHeight);
+    const width = window.innerWidth;
+    const height = window.innerHeight;
     
-    const newSize = Math.min(window.innerWidth, window.innerHeight) * 0.015;
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    
+    renderer.setSize(width, height);
+    composer.setSize(width, height);
+    
+    // Адаптивный размер призмы
+    const newSize = getPrismSize();
     prism.geometry.dispose();
     prism.geometry = new THREE.IcosahedronGeometry(newSize, 3);
+    
+    // Адаптация позиции камеры для iPhone
+    if (width < height && width < 768) {
+        camera.position.z = 35;
+        camera.position.y = 3;
+    } else {
+        camera.position.z = 30;
+        camera.position.y = 5;
+    }
 });
 
-// Пасхалка - улучшенная версия
+// Улучшенная пасхалка
 let clicks = 0;
 let timer = null;
 const secretMessages = [
-    "САУБОЛ КОТАК",
-    "LIQUID GLASS",
-    "ПРОСТРАНСТВО",
+    "СТАНЬ СВЕТОМ",
+    "ВНУТРИ РАДУГИ",
     "БЕСКОНЕЧНОСТЬ",
-    "СВЕТ И ТЕНЬ"
+    "ЗЕРКАЛО ДУШИ",
+    "ПРОЗРАЧНОСТЬ"
 ];
+
+// Создаем стили для пасхалки
+const easterEggStyle = document.createElement('style');
+easterEggStyle.textContent = `
+    @keyframes easterFadeIn {
+        0% { opacity: 0; transform: scale(0.8) translateY(20px); }
+        100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    
+    @keyframes easterFadeOut {
+        0% { opacity: 1; transform: scale(1) translateY(0); }
+        100% { opacity: 0; transform: scale(0.8) translateY(20px); }
+    }
+    
+    @keyframes textShimmer {
+        0% { background-position: -200% center; }
+        100% { background-position: 200% center; }
+    }
+`;
+document.head.appendChild(easterEggStyle);
 
 canvas.addEventListener('click', (e) => {
     clicks++;
@@ -214,46 +276,109 @@ canvas.addEventListener('click', (e) => {
         clicks = 0;
         const messageIndex = Math.floor(Math.random() * secretMessages.length);
         
-        const div = document.createElement('div');
-        div.style.cssText = `
+        // Создаем оверлей
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
             position: fixed;
             inset: 0;
-            background: radial-gradient(circle at center, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.95) 100%);
+            background: linear-gradient(135deg, rgba(0,0,0,0.95) 0%, rgba(20,10,30,0.98) 100%);
             z-index: 9999;
-            display: grid;
-            place-items: center;
-            backdrop-filter: blur(40px);
-            animation: fadeIn 0.5s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(30px);
+            animation: easterFadeIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
         `;
         
-        div.innerHTML = `
-            <div style="text-align: center;">
-                <h2 style="
-                    font-size: clamp(60px, 15vw, 180px);
-                    background: linear-gradient(45deg, #00ffaa, #ff3366, #00ffff, #ffaa00);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    background-clip: text;
-                    animation: pulse 2s infinite;
-                    margin-bottom: 30px;
-                    filter: drop-shadow(0 0 30px currentColor);
-                ">${secretMessages[messageIndex]}</h2>
-                <p style="
-                    color: rgba(255,255,255,0.7);
-                    font-size: clamp(16px, 3vw, 24px);
-                    animation: float 3s ease-in-out infinite;
-                ">Нажмите чтобы закрыть</p>
-            </div>
+        // Основной текст
+        const message = document.createElement('div');
+        message.style.cssText = `
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 900;
+            text-align: center;
+            line-height: 1;
+            letter-spacing: -0.02em;
+            max-width: 90vw;
+            padding: 40px 20px;
+            margin-bottom: 40px;
         `;
         
-        div.onclick = () => {
-            div.style.animation = 'fadeOut 0.5s ease';
-            setTimeout(() => div.remove(), 500);
+        // Адаптивный размер текста для всех устройств
+        if (window.innerWidth < 768) {
+            message.style.fontSize = 'clamp(48px, 15vw, 80px)';
+        } else if (window.innerWidth < 1024) {
+            message.style.fontSize = 'clamp(60px, 10vw, 100px)';
+        } else {
+            message.style.fontSize = 'clamp(80px, 8vw, 140px)';
+        }
+        
+        // Градиент как на главной
+        message.style.background = `
+            linear-gradient(
+                90deg,
+                #ff3366,
+                #ff6600,
+                #ffff00,
+                #00ff00,
+                #00ffff,
+                #0088ff,
+                #6600ff,
+                #ff00ff,
+                #ff3366
+            )
+        `;
+        message.style.backgroundSize = '400% 400%';
+        message.style.webkitBackgroundClip = 'text';
+        message.style.webkitTextFillColor = 'transparent';
+        message.style.backgroundClip = 'text';
+        message.style.animation = 'textShimmer 8s linear infinite';
+        message.textContent = secretMessages[messageIndex];
+        
+        // Субтитры
+        const subtitle = document.createElement('div');
+        subtitle.style.cssText = `
+            color: rgba(255,255,255,0.6);
+            font-size: clamp(14px, 2.5vw, 18px);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            font-weight: 500;
+            margin-top: 30px;
+            text-align: center;
+            animation: fadeInOut 3s ease-in-out infinite;
+        `;
+        subtitle.textContent = 'Нажмите в любом месте чтобы закрыть';
+        
+        // Анимация для субтитров
+        const subtitleStyle = document.createElement('style');
+        subtitleStyle.textContent = `
+            @keyframes fadeInOut {
+                0%, 100% { opacity: 0.4; }
+                50% { opacity: 0.8; }
+            }
+        `;
+        document.head.appendChild(subtitleStyle);
+        
+        // Добавляем элементы
+        overlay.appendChild(message);
+        overlay.appendChild(subtitle);
+        document.body.appendChild(overlay);
+        
+        // Закрытие по клику
+        const closeEasterEgg = () => {
+            overlay.style.animation = 'easterFadeOut 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards';
+            setTimeout(() => {
+                overlay.remove();
+                subtitleStyle.remove();
+            }, 600);
         };
         
-        document.body.appendChild(div);
+        overlay.onclick = closeEasterEgg;
         
-        // Добавляем звуковой эффект (опционально)
+        // Автозакрытие через 8 секунд
+        setTimeout(closeEasterEgg, 8000);
+        
+        // Звуковой эффект
         try {
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
             const oscillator = audioContext.createOscillator();
@@ -262,28 +387,26 @@ canvas.addEventListener('click', (e) => {
             oscillator.connect(gainNode);
             gainNode.connect(audioContext.destination);
             
-            oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // Нота C
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(880, audioContext.currentTime + 0.5);
+            
             gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.7);
             
             oscillator.start();
-            oscillator.stop(audioContext.currentTime + 0.5);
+            oscillator.stop(audioContext.currentTime + 0.7);
         } catch (e) {}
     }
 });
 
-// Партиклы при клике
-canvas.addEventListener('click', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+// Инициализация для iPhone
+if (/iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream) {
+    // Дополнительные оптимизации для iOS
+    camera.position.z = 40;
+    camera.position.y = 2;
     
-    // Создаем вспышку света
-    const flash = new THREE.PointLight(0xffffff, 50, 10);
-    flash.position.set(x * 15, y * 10, 5);
-    scene.add(flash);
-    
-    setTimeout(() => {
-        scene.remove(flash);
-    }, 100);
-});
+    // Уменьшаем качество для повышения производительности
+    renderer.setPixelRatio(1);
+    prism.geometry = new THREE.IcosahedronGeometry(prismSize, 2);
+}
