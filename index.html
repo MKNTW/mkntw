@@ -3,14 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-    <title>#6medi[v**^mknt\w!&{ps;fp5+__<~</title>
+    <title>LIQUID GLASS | #6medi[v**^mknt\w!&{ps;fp5+__<~</title>
     <link rel="stylesheet" href="styles.css">
-    <!-- Самая стабильная версия Three.js 2025 года -->
-    <script src="https://unpkg.com/three@0.168.0/build/three.min.js"></script>
-    <script src="script.js" type="module"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@900&display=swap" rel="stylesheet">
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.168.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.168.0/examples/jsm/"
+            }
+        }
+    </script>
 </head>
 <body>
+    <div class="bg-elements" id="bgElements"></div>
+    <div class="custom-cursor" id="cursor"></div>
     <canvas id="canvas"></canvas>
+
+    <div class="instructions">
+        <span>Нажмите на кристалл 5 раз</span>
+        <span>Двигайте мышью</span>
+        <span>Наслаждайтесь</span>
+    </div>
 
     <main class="center">
         <h1>#6medi[v**^mknt\w!&{ps;fp5+__<~</h1>
@@ -18,7 +33,53 @@
 
     <footer class="footer">
         <div class="footer-line"></div>
-        <p>© 2025 All rights reserved</p>
+        <p>LIQUID GLASS EXPERIENCE © 2025</p>
+        <p style="font-size: 11px; margin-top: 5px; opacity: 0.5;">UNIVERSE IS EXPANDING</p>
     </footer>
+
+    <script src="script.js" type="module"></script>
+    <script>
+        // Кастомный курсор
+        const cursor = document.getElementById('cursor');
+        document.addEventListener('mousemove', (e) => {
+            cursor.style.left = e.clientX + 'px';
+            cursor.style.top = e.clientY + 'px';
+        });
+        
+        // Плавающие элементы фона
+        const bgElements = document.getElementById('bgElements');
+        for (let i = 0; i < 15; i++) {
+            const el = document.createElement('div');
+            el.className = 'bg-element';
+            const size = Math.random() * 100 + 50;
+            el.style.width = size + 'px';
+            el.style.height = size + 'px';
+            el.style.left = Math.random() * 100 + 'vw';
+            el.style.top = Math.random() * 100 + 'vh';
+            el.style.opacity = Math.random() * 0.1 + 0.05;
+            el.style.setProperty('--tx', (Math.random() * 100 - 50) + 'px');
+            el.style.setProperty('--ty', (Math.random() * 100 - 50) + 'px');
+            el.style.animationDuration = (Math.random() * 20 + 20) + 's';
+            bgElements.appendChild(el);
+        }
+        
+        // Эффект печатающегося текста
+        window.addEventListener('load', () => {
+            const title = document.querySelector('h1');
+            const text = title.textContent;
+            title.textContent = '';
+            
+            let i = 0;
+            const typeWriter = () => {
+                if (i < text.length) {
+                    title.textContent += text.charAt(i);
+                    i++;
+                    setTimeout(typeWriter, 50);
+                }
+            };
+            
+            setTimeout(typeWriter, 1000);
+        });
+    </script>
 </body>
 </html>
