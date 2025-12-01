@@ -2,18 +2,18 @@
 <html lang="ru" class="no-select">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>LIQUID GLASS PRISM | #6medi</title>
+    <title>SOLAR PRISM | #6medi</title>
     
     <!-- iOS meta tags -->
     <meta name="format-detection" content="telephone=no">
-    <meta name="apple-mobile-web-app-title" content="Liquid Glass">
+    <meta name="apple-mobile-web-app-title" content="Solar Prism">
     
     <link rel="stylesheet" href="styles.css">
     
-    <!-- Предзагрузка шрифтов -->
+    <!-- Предзагрузка -->
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     
     <!-- Оптимизированная версия Three.js -->
@@ -29,9 +29,9 @@
 <body>
     <canvas id="canvas"></canvas>
 
-    <main class="center">
+    <div class="title-container">
         <h1>#6medi[v**^mknt\w!&{ps;fp5+__<~</h1>
-    </main>
+    </div>
 
     <footer class="footer">
         <p>2025 All rights reserved</p>
@@ -40,35 +40,58 @@
     <script src="script.js" type="module"></script>
     
     <script>
-        // Оптимизация для мобильных устройств
-        if ('ontouchstart' in window) {
-            document.body.classList.add('touch-device');
-        }
+        // Полностью отключаем скролл и масштабирование
+        document.addEventListener('DOMContentLoaded', function() {
+            // Отключаем контекстное меню
+            document.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+            });
+            
+            // Отключаем выделение текста
+            document.addEventListener('selectstart', function(e) {
+                e.preventDefault();
+            });
+            
+            // Фиксируем размер viewport
+            function fixViewport() {
+                document.documentElement.style.height = '100%';
+                document.body.style.height = '100%';
+                document.body.style.overflow = 'hidden';
+                document.body.style.position = 'fixed';
+                document.body.style.width = '100%';
+            }
+            
+            fixViewport();
+            
+            // Обработка изменения ориентации
+            window.addEventListener('orientationchange', function() {
+                setTimeout(fixViewport, 100);
+            });
+            
+            // Плавное появление
+            setTimeout(function() {
+                document.body.style.opacity = '1';
+                document.body.style.transition = 'opacity 1s ease';
+            }, 100);
+        });
         
-        // Предотвращение масштабирования на iOS
+        // Предотвращаем любые жесты масштабирования
         document.addEventListener('touchmove', function(e) {
             if (e.scale !== 1) {
                 e.preventDefault();
             }
         }, { passive: false });
         
-        // Обработка ориентации
-        let isPortrait = window.innerHeight > window.innerWidth;
-        window.addEventListener('orientationchange', function() {
-            setTimeout(function() {
-                isPortrait = window.innerHeight > window.innerWidth;
-                window.dispatchEvent(new Event('resize'));
-            }, 300);
-        });
+        // Запрещаем скролл колесиком мыши
+        document.addEventListener('wheel', function(e) {
+            e.preventDefault();
+        }, { passive: false });
         
-        // Плавное появление контента
-        window.addEventListener('load', function() {
-            document.body.style.opacity = '0';
-            document.body.style.transition = 'opacity 1s ease';
-            
-            setTimeout(function() {
-                document.body.style.opacity = '1';
-            }, 500);
+        // Запрещаем скролл стрелками и пробелом
+        document.addEventListener('keydown', function(e) {
+            if ([32, 37, 38, 39, 40].includes(e.keyCode)) {
+                e.preventDefault();
+            }
         });
     </script>
 </body>
