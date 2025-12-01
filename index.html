@@ -1,12 +1,23 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" class="no-select">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-    <title>LIQUID GLASS | #6medi[v**^mknt\w!&{ps;fp5+__<~</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>LIQUID GLASS PRISM | #6medi</title>
+    
+    <!-- iOS meta tags -->
+    <meta name="format-detection" content="telephone=no">
+    <meta name="apple-mobile-web-app-title" content="Liquid Glass">
+    
     <link rel="stylesheet" href="styles.css">
+    
+    <!-- Предзагрузка шрифтов для лучшей производительности -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@900&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Оптимизированная версия Three.js -->
     <script type="importmap">
         {
             "imports": {
@@ -17,68 +28,43 @@
     </script>
 </head>
 <body>
-    <div class="bg-elements" id="bgElements"></div>
-    <div class="custom-cursor" id="cursor"></div>
     <canvas id="canvas"></canvas>
-
-    <div class="instructions">
-        <span>Нажмите на кристалл 5 раз</span>
-        <span>Двигайте мышью</span>
-        <span>Наслаждайтесь</span>
-    </div>
 
     <main class="center">
         <h1>#6medi[v**^mknt\w!&{ps;fp5+__<~</h1>
     </main>
 
     <footer class="footer">
-        <div class="footer-line"></div>
-        <p>LIQUID GLASS EXPERIENCE © 2025</p>
-        <p style="font-size: 11px; margin-top: 5px; opacity: 0.5;">UNIVERSE IS EXPANDING</p>
+        <p>2025 All rights reserved</p>
     </footer>
 
     <script src="script.js" type="module"></script>
+    
     <script>
-        // Кастомный курсор
-        const cursor = document.getElementById('cursor');
-        document.addEventListener('mousemove', (e) => {
-            cursor.style.left = e.clientX + 'px';
-            cursor.style.top = e.clientY + 'px';
-        });
-        
-        // Плавающие элементы фона
-        const bgElements = document.getElementById('bgElements');
-        for (let i = 0; i < 15; i++) {
-            const el = document.createElement('div');
-            el.className = 'bg-element';
-            const size = Math.random() * 100 + 50;
-            el.style.width = size + 'px';
-            el.style.height = size + 'px';
-            el.style.left = Math.random() * 100 + 'vw';
-            el.style.top = Math.random() * 100 + 'vh';
-            el.style.opacity = Math.random() * 0.1 + 0.05;
-            el.style.setProperty('--tx', (Math.random() * 100 - 50) + 'px');
-            el.style.setProperty('--ty', (Math.random() * 100 - 50) + 'px');
-            el.style.animationDuration = (Math.random() * 20 + 20) + 's';
-            bgElements.appendChild(el);
+        // Оптимизация для мобильных устройств
+        if ('ontouchstart' in window || navigator.maxTouchPoints) {
+            document.body.classList.add('touch-device');
         }
         
-        // Эффект печатающегося текста
-        window.addEventListener('load', () => {
-            const title = document.querySelector('h1');
-            const text = title.textContent;
-            title.textContent = '';
-            
-            let i = 0;
-            const typeWriter = () => {
-                if (i < text.length) {
-                    title.textContent += text.charAt(i);
-                    i++;
-                    setTimeout(typeWriter, 50);
-                }
-            };
-            
-            setTimeout(typeWriter, 1000);
+        // Предотвращение стандартных жестов масштабирования на iOS
+        document.addEventListener('touchmove', function(e) {
+            if (e.scale !== 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+        
+        // Оптимизация загрузки для медленных соединений
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                document.body.style.opacity = '1';
+            }, 100);
+        });
+        
+        // Адаптация ориентации для мобильных
+        window.addEventListener('orientationchange', function() {
+            setTimeout(function() {
+                window.dispatchEvent(new Event('resize'));
+            }, 300);
         });
     </script>
 </body>
