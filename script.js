@@ -3,67 +3,78 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true 
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.2;
+renderer.toneMappingExposure = 1.4;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x000000);
+const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.z = window.innerWidth < 768 ? 13 : 11;
 
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
-camera.position.z = window.innerWidth < 768 ? 12 : 10;
-
-// Создаём окружение для отражений (важно для стекла!)
-const envTexture = new THREE.TextureLoader().load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/equirectangular/royal_esplanade_1k.hdr');
-envTexture.mapping = THREE.EquirectangularReflectionMapping;
-scene.environment = envTexture;
-
-// Стеклянная призма в стиле iOS 18 / macOS Sequoia
-function createPrism() {
-    const size = Math.min(window.innerWidth, window.innerHeight) * 0.45;
-    const geometry = new THREE.TetrahedronGeometry(size / 100, 0);
-
-    const material = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        metalness: 0.05,
-        roughness: 0.0,
-        transmission: 0.98,      // почти полностью прозрачная
-        thickness: 2.8,           // толщина для преломления
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.0,
-        ior: 1.5,
-        envMapIntensity: 10,
-        reflectivity: 1.0,
-        attenuationDistance: 0,
-        attenuationColor: new THREE.Color(0xffffff),
-        specularIntensity: 1.5
+// === ЭТО ГЛАВНОЕ: HDR окружение с fallback ===
+let envMap;
+new THREE.RGBELoader()
+    .setPath('https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/equirectangular/')
+    .load('royal_esplanade_1k.hdr', (texture) => {
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+        envMap = texture;
+        scene.environment = envMap;
+        scene.background = new THREE.Color(0x000000);
+        updatePrism(); // перерисовываем призму с настоящим отражением
+    }, undefined, () => {
+        // Fallback если HDR не загрузился
+        const fallback = new THREE.CubeTextureLoader()
+            .setPath('https://threejs.org/examples/textures/cube/pisa/')
+            .load(['px.png', 'nx.png', 'py.png', 'ny.png', 'pz.png', 'nz.png']);
+        fallback.mapping = THREE.CubeReflectionMapping;
+        envMap = fallback;
+        scene.environment = envMap;
+        updatePrism();
     });
 
-    const prism = new THREE.Mesh(geometry, material);
+// === Жидкая стеклянная призма ===
+let prism;
+function updatePrism() {
+    if (prism) scene.remove(prism);
+
+    const scale = Math.min(window.innerWidth, window.innerHeight) * 0.48;
+    const geometry = new THREE.TetrahedronGeometry(scale / 100, 0);
+
+    prism = new THREE.Mesh(geometry, new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        metalness: 0.02,
+        roughness: 0.0,
+        transmission: 0.99,
+        thickness: 3.8,
+        ior: 1.49,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.0,
+        reflectivity: 1.0,
+        envMapIntensity: 12,
+        attenuationDistance: 0,
+        specularIntensity: 2.0,
+        specularColor: 0xffffff,
+    }));
+
     scene.add(prism);
-    return prism;
 }
+updatePrism(); // создаём сразу, даже если HDR ещё грузится
 
-let prism = createPrism();
+// Мягкие цветные лучи
+const lights = [
+    new THREE.PointLight(0x00ffff, 15, 70),
+    new THREE.PointLight(0xff00aa, 15, 70),
+    new THREE.PointLight(0xaaff88, 10, 70),
+];
+lights[0].position.set(-18, -3, 15);
+lights[1].position.set(18, 2, 15);
+lights[2].position.set(0, 16, 13);
+lights.forEach(l => scene.add(l));
 
-// Цветные лучи — стали мягче и атмосфернее
-const light1 = new THREE.PointLight(0x00ffcc, 12, 60);
-light1.position.set(-16, -2, 14);
-scene.add(light1);
-
-const light2 = new THREE.PointLight(0xff4499, 12, 60);
-light2.position.set(16, 0, 14);
-scene.add(light2);
-
-const light3 = new THREE.PointLight(0x5588ff, 8, 60);
-light3.position.set(0, 14, 12);
-scene.add(light3);
-
-// Пасхалка по тачу/клику
-const easter = document.getElementById('easter');
+// Пасхалка — 3 клика
 let clicks = 0;
 document.addEventListener('click', () => {
-    clicks++;
-    if (clicks === 3) {
-        easter.classList.toggle('show');
+    if (++clicks === 3) {
+        document.getElementById('easter').classList.toggle('show');
         clicks = 0;
     }
 });
@@ -71,22 +82,18 @@ document.addEventListener('click', () => {
 // Анимация
 function animate() {
     requestAnimationFrame(animate);
-    prism.rotation.y += 0.0035;
-    prism.rotation.x += 0.0015;
+    prism.rotation.y += 0.004;
+    prism.rotation.x += 0.0018;
     renderer.render(scene, camera);
 }
 animate();
 
 // Resize
 window.addEventListener('resize', () => {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-
+    const w = window.innerWidth, h = window.innerHeight;
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     renderer.setSize(w, h);
-
-    scene.remove(prism);
-    prism = createPrism();
-    camera.position.z = w < 768 ? 12 : 10;
+    camera.position.z = w < 768 ? 13 : 11;
+    updatePrism();
 });
