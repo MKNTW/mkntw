@@ -5,50 +5,53 @@ html, body {
     width: 100%;
     background: #000;
     overflow: hidden;
-    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    /* Системный тёмный фон + чёрная статус-бар на iOS/Android */
-    background-color: #000 !important;
+    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
     color-scheme: dark;
+    background-color: #000 !important;
 }
 
-canvas {
+canvas { position: fixed; inset: 0; display: block; }
+
+/* Liquid Glass контейнер */
+.center {
     position: fixed;
     inset: 0;
-    width: 100%;
-    height: 100%;
-    display: block;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    z-index: 10;
+    padding: 8vmin 10vw; /* ← КЛЮЧЕВЫЕ ОТСТУПЫ СЛЕВА И СПРАВА */
 }
 
-/* Пасхалка — появляется по клику/тачу */
+/* Пасхалка */
 #easter {
     position: fixed;
     inset: 0;
     display: grid;
     place-items: center;
-    font-size: clamp(36px, 9vw, 100px);
+    font-size: clamp(40px, 10vw, 110px);
     font-weight: 900;
-    background: linear-gradient(90deg, #ff3366, #ff66aa, #cc33ff, #6677ff, #00ffff, #00ffaa);
+    background: linear-gradient(90deg, #ff0, #f0f, #0ff, #0f0, #ff0);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
     opacity: 0;
     pointer-events: none;
     z-index: 30;
-    transition: opacity 0.6s ease;
-    text-shadow: 0 0 40px rgba(255,255,255,0.4);
+    transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+    text-shadow: 0 0 60px rgba(255,100,255,0.6);
 }
 
 #easter.show { opacity: 1; pointer-events: all; }
 
-/* Основной заголовок */
+/* Главный заголовок — с защитой от вылезания */
 .main-title {
     font-weight: 900;
-    text-align: center;
     letter-spacing: -0.04em;
     line-height: 0.92;
-    font-size: clamp(42px, 11vw, 156px);
+    text-align: center;
+    font-size: clamp(44px, 11.5vw, 168px);
     
-    /* Максимально широкий градиент без обрезки */
     background: linear-gradient(90deg,
         #ff3366, #ff66aa, #cc33ff, #6677ff,
         #00ffff, #00ffaa, #88ff44, #ffff44,
@@ -58,54 +61,55 @@ canvas {
     background-clip: text;
     -webkit-text-fill-color: transparent;
     
-    animation: rainbow 16s ease infinite;
-    padding: 0 8vw; /* страховка от вылезания */
-    max-width: 100vw;
+    animation: rainbow 18s ease infinite;
+    
+    /* Защита от переполнения */
+    max-width: 100%;
+    word-break: break-all;
+    hyphens: auto;
 }
 
-.center {
-    position: fixed;
+/* Жидкое стекло для текста (лёгкий блик) */
+.main-title::before {
+    content: '';
+    position: absolute;
     inset: 0;
-    display: grid;
-    place-items: center;
+    background: linear-gradient(135deg, 
+        rgba(255,255,255,0) 0%, 
+        rgba(255,255,255,0.12) 50%, 
+        rgba(255,255,255,0) 100%);
+    border-radius: 20px;
+    filter: blur(20px);
+    transform: translateY(-50%) scale(1.4);
     pointer-events: none;
-    z-index: 10;
-    padding: 5vmin;
+    animation: liquidShine 8s ease-in-out infinite;
 }
 
-/* Футер в стиле новых AI-стартапов 2025 */
+@keyframes rainbow { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+@keyframes liquidShine { 0%,100%{transform:translateY(-50%) scale(1.4) rotate(0deg)} 50%{transform:translateY(-50%) scale(1.6) rotate(5deg)} }
+
 .footer {
     position: fixed;
     bottom: 0;
     left: 0;
     width: 100%;
     text-align: center;
-    padding: 28px 20px;
+    padding: 32px 20px;
     z-index: 20;
     pointer-events: none;
 }
 
 .footer-line {
-    width: 180px;
+    width: 200px;
     height: 1px;
-    background: linear-gradient(90deg, transparent, #ffffff44, transparent);
-    margin: 0 auto 14px auto;
+    background: linear-gradient(90deg, transparent, #ffffff55, transparent);
+    margin: 0 auto 16px auto;
 }
 
 .footer p {
-    color: #ffffff55;
-    font-size: clamp(13px, 2.5vw, 15px);
-    letter-spacing: 2.8px;
+    color: #ffffff66;
+    font-size: clamp(14px, 2.6vw, 16px);
+    letter-spacing: 3px;
     text-transform: uppercase;
-    font-weight: 500;
-}
-
-@keyframes rainbow {
-    0%, 100% { background-position: 0% 50%; }
-    50%      { background-position: 100% 50%; }
-}
-
-/* Экстра-адаптив для узких экранов */
-@media (max-width: 380px) {
-    .main-title { font-size: 12vw; }
+    font-weight: 600;
 }
