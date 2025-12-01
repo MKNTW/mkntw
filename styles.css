@@ -3,7 +3,7 @@
 html, body {
     height: 100%;
     width: 100%;
-    background: transparent !important;
+    background: transparent;
     overflow: hidden;
     font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
@@ -13,7 +13,6 @@ canvas {
     inset: 0;
     width: 100%;
     height: 100%;
-    z-index: 1; /* ВАЖНО */
 }
 
 /* Заменяем старый .center и h1 на это: */
