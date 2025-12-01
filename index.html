@@ -107,39 +107,11 @@
       animation: pulse 2s infinite;
     }
 
-    /* Сообщение об ошибке */
-    .error-message {
-      position: fixed;
-      top: 45px;
-      left: 20px;
-      color: #ff3366;
-      font-size: 12px;
-      max-width: 300px;
-      background: rgba(0, 0, 0, 0.8);
-      padding: 8px 12px;
-      border-radius: 6px;
-      border-left: 3px solid #ff3366;
-      z-index: 1000;
-      opacity: 0;
-      transform: translateY(-10px);
-      transition: opacity 0.3s, transform 0.3s;
-      pointer-events: none;
-    }
-    .error-message.show {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
     .loading-message {
       position:fixed; inset:0; display:grid; place-items:center;
       color:#fff; z-index:1000; background:#000;
       font-size: 20px;
       text-align: center;
-      transition: opacity 0.5s ease;
-    }
-    .loading-message.hidden {
-      opacity: 0;
-      pointer-events: none;
     }
 
     .hidden-until-loaded { display:none; }
@@ -159,12 +131,9 @@
 
 <body>
   <div class="loading-message" id="loadingMessage">Загрузка 3D-графики...</div>
-  
+
   <!-- Индикатор статуса -->
   <div class="status-indicator yellow" id="statusIndicator"></div>
-  
-  <!-- Сообщение об ошибке (появляется при наведении на красную точку) -->
-  <div class="error-message" id="errorMessage"></div>
 
   <canvas id="canvas" class="hidden-until-loaded"></canvas>
 
@@ -184,46 +153,12 @@
     // Элементы статуса
     const statusIndicator = document.getElementById('statusIndicator');
     const loadingMessage = document.getElementById('loadingMessage');
-    const errorMessage = document.getElementById('errorMessage');
-    let currentError = '';
-
-    // Показать сообщение об ошибке
-    function showError(text) {
-      currentError = text;
-      errorMessage.textContent = text;
-      errorMessage.classList.add('show');
-      
-      // Скрыть через 5 секунд
-      setTimeout(() => {
-        errorMessage.classList.remove('show');
-      }, 5000);
-    }
-
-    // Скрыть сообщение об ошибке
-    function hideError() {
-      errorMessage.classList.remove('show');
-    }
-
-    // Показать ошибку при наведении на красную точку
-    statusIndicator.addEventListener('mouseenter', () => {
-      if (currentError && statusIndicator.classList.contains('red')) {
-        errorMessage.classList.add('show');
-      }
-    });
-
-    statusIndicator.addEventListener('mouseleave', () => {
-      errorMessage.classList.remove('show');
-    });
 
     // Функция обновления статуса
-    function updateStatus(color, message = '', error = '') {
+    function updateStatus(color, message = '') {
       statusIndicator.className = 'status-indicator ' + color;
-      if (message) {
+      if (message && loadingMessage) {
         loadingMessage.textContent = message;
-      }
-      if (error) {
-        currentError = error;
-        errorMessage.textContent = error;
       }
     }
 
@@ -232,13 +167,8 @@
       try {
         const canvas = document.createElement('canvas');
         const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-        if (!gl) {
-          updateStatus('red', 'WebGL не поддерживается', 'WebGL не поддерживается вашим браузером');
-          return false;
-        }
-        return true;
+        return !!gl;
       } catch (e) {
-        updateStatus('red', 'Ошибка WebGL', 'Ошибка при проверке WebGL: ' + e.message);
         return false;
       }
     }
@@ -247,49 +177,38 @@
     const threeJsCDNs = [
       'https://cdnjs.cloudflare.com/ajax/libs/three.js/r181/three.min.js',
       'https://unpkg.com/three@0.181.2/build/three.min.js',
-      'https://cdn.jsdelivr.net/npm/three@0.181.2/build/three.min.js',
-      'https://threejs.org/build/three.min.js'
+      'https://cdn.jsdelivr.net/npm/three@0.181.2/build/three.min.js'
     ];
 
     let isThreeLoaded = false;
     let currentCDNIndex = 0;
-    let loadAttempts = 0;
-    const maxLoadAttempts = 3;
 
     // Функция загрузки Three.js
     function loadThreeJs() {
+      // Если WebGL не поддерживается - просто показываем основной контент без 3D
       if (!isWebGLSupported()) {
-        // Показать основной контент даже без 3D
-        setTimeout(() => {
-          loadingMessage.classList.add('hidden');
-          document.body.classList.add('loaded');
-        }, 2000);
-        return;
-      }
-
-      if (loadAttempts >= maxLoadAttempts) {
-        updateStatus('red', 'Не удалось загрузить 3D', 'Не удалось загрузить Three.js со всех CDN');
-        // Показать основной контент даже без 3D
-        setTimeout(() => {
-          loadingMessage.classList.add('hidden');
-          document.body.classList.add('loaded');
-        }, 2000);
+        updateStatus('red');
+        loadingMessage.style.display = 'none';
+        document.body.classList.add('loaded');
         return;
       }
 
       if (currentCDNIndex >= threeJsCDNs.length) {
-        currentCDNIndex = 0;
-        loadAttempts++;
+        // Не удалось загрузить Three.js - показываем основной контент без 3D
+        updateStatus('red');
+        loadingMessage.style.display = 'none';
+        document.body.classList.add('loaded');
+        return;
       }
 
-      updateStatus('yellow', `Загрузка 3D... (${loadAttempts + 1}/${maxLoadAttempts})`);
+      updateStatus('yellow', 'Загрузка 3D-библиотек...');
 
       const script = document.createElement('script');
       script.src = threeJsCDNs[currentCDNIndex];
       
       script.onload = () => {
         if (typeof THREE !== 'undefined') {
-          updateStatus('green', '3D загружен');
+          updateStatus('green');
           setTimeout(() => {
             initApp();
           }, 500);
@@ -313,17 +232,12 @@
       isThreeLoaded = true;
 
       try {
-        loadingMessage.classList.add('hidden');
+        loadingMessage.style.display = 'none';
         document.body.classList.add('loaded');
 
         const canvas = document.getElementById('canvas');
         
-        // Проверка контекста WebGL
-        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-        if (!gl) {
-          throw new Error('Не удалось получить WebGL контекст');
-        }
-
+        // Создаем рендерер
         const renderer = new THREE.WebGLRenderer({
           canvas,
           antialias: true,
@@ -343,10 +257,6 @@
         const envCanvas = document.createElement('canvas');
         envCanvas.width = envCanvas.height = 1024;
         const ctx = envCanvas.getContext('2d');
-        if (!ctx) {
-          throw new Error('Не удалось получить 2D контекст');
-        }
-        
         const grad = ctx.createRadialGradient(512, 512, 0, 512, 512, 512);
         grad.addColorStop(0, '#ffffff');
         grad.addColorStop(1, '#000814');
@@ -440,10 +350,8 @@
 
       } catch (error) {
         console.error('Ошибка инициализации 3D:', error);
-        updateStatus('red', 'Ошибка 3D', 'Ошибка инициализации 3D: ' + error.message);
-        
-        // Все равно показываем основной контент
-        loadingMessage.classList.add('hidden');
+        updateStatus('red');
+        loadingMessage.style.display = 'none';
         document.body.classList.add('loaded');
       }
     }
@@ -451,20 +359,13 @@
     // Обработчик ошибок
     window.addEventListener('error', (event) => {
       console.error('Глобальная ошибка:', event.error);
-      updateStatus('red', 'Произошла ошибка', 'Произошла ошибка в приложении');
+      updateStatus('red');
     });
 
     // Запуск при загрузке DOM
     window.addEventListener('DOMContentLoaded', () => {
-      updateStatus('yellow', 'Проверка поддержки 3D...');
+      updateStatus('yellow', 'Проверка поддержки WebGL...');
       setTimeout(loadThreeJs, 100);
-    });
-
-    // Обновление статуса при видимости страницы
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && !isThreeLoaded) {
-        updateStatus('yellow', 'Возобновление загрузки...');
-      }
     });
 
   </script>
