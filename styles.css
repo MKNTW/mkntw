@@ -5,7 +5,20 @@ html, body {
     width: 100%;
     background: #000;
     overflow: hidden;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    cursor: none;
+}
+
+.custom-cursor {
+    position: fixed;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0, 255, 255, 0.3) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 9999;
+    mix-blend-mode: screen;
+    transition: transform 0.1s ease;
 }
 
 canvas {
@@ -26,6 +39,7 @@ canvas {
     pointer-events: none;
     z-index: 10;
     padding: 5vmin;
+    perspective: 1000px;
 }
 
 h1 {
@@ -36,18 +50,55 @@ h1 {
     line-height: 0.92;
     max-width: 96vw;
     word-break: break-word;
-
-    background: linear-gradient(90deg, #ff3366, #ff66aa, #cc33ff, #6677ff, #00ffff, #00ffaa, #88ff44, #ffff44, #ffaa33, #ff3366);
-    background-size: 500% 500%;
+    text-transform: uppercase;
+    background: linear-gradient(90deg, 
+        #ff3366, #ff66aa, #cc33ff, #6677ff, 
+        #00ffff, #00ffaa, #88ff44, #ffff44, 
+        #ffaa33, #ff3366);
+    background-size: 300% 300%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    animation: rainbow 16s ease infinite;
+    animation: rainbow 8s ease infinite, float 6s ease-in-out infinite;
+    filter: drop-shadow(0 0 20px rgba(255, 51, 102, 0.3));
+    transform-style: preserve-3d;
+}
+
+h1::after {
+    content: '#6medi[v**^mknt\w!&{ps;fp5+__<~';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    background: linear-gradient(90deg, #00ffff, transparent);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    z-index: -1;
+    opacity: 0.3;
 }
 
 @keyframes rainbow {
     0%, 100% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0) rotateX(5deg); }
+    50% { transform: translateY(-10px) rotateX(5deg); }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0; transform: scale(0.9); }
 }
 
 .footer {
@@ -57,19 +108,78 @@ h1 {
     padding: 24px 20px;
     z-index: 20;
     pointer-events: none;
+    backdrop-filter: blur(10px);
+    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
 }
 
 .footer-line {
-    width: 160px;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, #ffffff33, transparent);
-    margin: 0 auto 12px auto;
+    width: 200px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #ffffff66, transparent);
+    margin: 0 auto 15px auto;
+    animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
 }
 
 .footer p {
-    color: #ffffff44;
+    color: #ffffff88;
     font-size: clamp(13px, 2.5vw, 15px);
-    letter-spacing: 2px;
+    letter-spacing: 3px;
     text-transform: uppercase;
     font-weight: 500;
+    animation: glitch 5s infinite;
+}
+
+@keyframes glitch {
+    0%, 95% { transform: translate(0); }
+    96% { transform: translate(-2px, 1px); opacity: 0.8; }
+    97% { transform: translate(1px, -1px); opacity: 0.9; }
+    98% { transform: translate(-1px, 2px); }
+}
+
+/* Плавающие элементы фона */
+.bg-elements {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.bg-element {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    animation: drift linear infinite;
+}
+
+@keyframes drift {
+    from { transform: translate(0) rotate(0); }
+    to { transform: translate(var(--tx), var(--ty)) rotate(360deg); }
+}
+
+/* Инструкция */
+.instructions {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    color: rgba(255,255,255,0.6);
+    font-size: 12px;
+    text-align: right;
+    pointer-events: none;
+    z-index: 100;
+}
+
+.instructions span {
+    display: block;
+    margin-bottom: 5px;
+    animation: fadeInOut 4s infinite;
+}
+
+@keyframes fadeInOut {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
 }
