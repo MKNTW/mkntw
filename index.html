@@ -88,200 +88,260 @@
       background: #000; color: #fff; font-family: sans-serif; text-align: center;
       padding: 20px; font-size: 18px; z-index: 100;
     }
+    
+    /* Скрываем основной контент пока не загрузится Three.js */
+    .hidden-until-loaded {
+      display: none;
+    }
+    .loaded .hidden-until-loaded {
+      display: block;
+    }
+    .loaded .center,
+    .loaded .footer {
+      display: grid;
+    }
   </style>
 </head>
 <body>
+  <div class="loading-message" style="position:fixed; inset:0; display:grid; place-items:center; color:#fff; z-index:1000; background:#000;">
+    Загрузка 3D-графики...
+  </div>
 
-  <canvas id="canvas" style="display: none;"></canvas>
+  <canvas id="canvas" class="hidden-until-loaded"></canvas>
 
-  <div class="center">
+  <div class="center hidden-until-loaded">
     <h1 id="easter">сәүбүл котак, братан</h1>
     <h1>#6medi[v**^mknt\w!&{ps;fp5+__<~</h1>
   </div>
 
-  <div class="footer">
+  <div class="footer hidden-until-loaded">
     <div class="footer-line"></div>
     <p>© 2025 · All rights reserved</p>
   </div>
 
-  <!-- Несколько fallback CDN для Three.js (r181.2 — последняя версия) -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.181.2/build/three.min.js"></script>
-  <script>
-    // Fallback: если jsDelivr не загрузил, пробуем unpkg
-    window.addEventListener('load', () => {
-      if (typeof THREE === 'undefined') {
-        const script = document.createElement('script');
-        script.src = 'https://unpkg.com/three@0.181.2/build/three.min.js';
-        script.onload = initApp;
-        script.onerror = () => showError();
-        document.head.appendChild(script);
-      } else {
-        initApp();
-      }
-    });
-  </script>
-
   <script>
     'use strict';
 
+    // Массив CDN ссылок для Three.js с разными источниками
+    const threeJsCDNs = [
+      'https://cdnjs.cloudflare.com/ajax/libs/three.js/r181/three.min.js',
+      'https://unpkg.com/three@0.181.2/build/three.min.js',
+      'https://cdn.jsdelivr.net/npm/three@0.181.2/build/three.min.js',
+      'https://threejs.org/build/three.min.js'
+    ];
+
     let isThreeLoaded = false;
+    let currentCDNIndex = 0;
 
     function showError() {
-      document.body.innerHTML = `
-        <div class="error">
-          <h2>Ошибка загрузки</h2>
-          <p>Не удалось загрузить необходимые библиотеки.</p>
-          <p>Проверьте интернет-соединение и обновите страницу.</p>
-          <p><small>Ошибка: Не удалось загрузить Three.js со всех CDN</small></p>
+      document.querySelector('.loading-message').innerHTML = `
+        <div style="text-align:center; padding:20px; max-width:600px;">
+          <h2 style="color:#ff3366; margin-bottom:20px;">Ошибка загрузки</h2>
+          <p style="margin-bottom:10px;">Не удалось загрузить необходимые библиотеки.</p>
+          <p style="margin-bottom:20px;">Проверьте интернет-соединение и обновите страницу.</p>
+          <p style="font-size:14px; color:#aaa; margin-bottom:30px;">Ошибка: Не удалось загрузить Three.js со всех CDN</p>
+          <button onclick="location.reload()" style="background:#ff3366; color:white; border:none; padding:12px 30px; font-size:16px; border-radius:8px; cursor:pointer;">
+            Обновить страницу
+          </button>
         </div>
       `;
+    }
+
+    function loadThreeJs() {
+      if (currentCDNIndex >= threeJsCDNs.length) {
+        showError();
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = threeJsCDNs[currentCDNIndex];
+      
+      script.onload = function() {
+        if (typeof THREE !== 'undefined' && THREE.WebGLRenderer) {
+          console.log(`Three.js успешно загружен с CDN: ${threeJsCDNs[currentCDNIndex]}`);
+          initApp();
+        } else {
+          // Если THREE загрузился, но не полностью
+          currentCDNIndex++;
+          loadThreeJs();
+        }
+      };
+      
+      script.onerror = function() {
+        console.warn(`Не удалось загрузить Three.js с: ${threeJsCDNs[currentCDNIndex]}`);
+        currentCDNIndex++;
+        loadThreeJs();
+      };
+      
+      document.head.appendChild(script);
     }
 
     function initApp() {
       if (isThreeLoaded) return;
       isThreeLoaded = true;
 
-      if (typeof THREE === 'undefined') {
-        showError();
-        return;
-      }
+      // Скрываем сообщение о загрузке
+      document.querySelector('.loading-message').style.display = 'none';
+      
+      // Показываем основной контент
+      document.body.classList.add('loaded');
 
-      console.log('Three.js r' + THREE.REVISION + ' успешно загружен');
+      console.log('Three.js r' + (THREE.REVISION || 'unknown') + ' успешно загружен');
 
       const canvas = document.getElementById('canvas');
-      canvas.style.display = 'block';
 
-      const renderer = new THREE.WebGLRenderer({
-        canvas,
-        antialias: true,
-        alpha: true,
-        powerPreference: "high-performance"
-      });
-
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      
-      // Совместимость с r181+: используем свойства, которые точно есть
-      if (renderer.toneMapping !== undefined) {
-        renderer.toneMapping = THREE.ACESFilmicToneMapping || THREE.ReinhardToneMapping || THREE.LinearToneMapping;
-      }
-      if (renderer.toneMappingExposure !== undefined) {
-        renderer.toneMappingExposure = 1.8;
-      }
-      if (renderer.outputColorSpace !== undefined) {
-        renderer.outputColorSpace = THREE.SRGBColorSpace;
-      }
-
-      const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(56, window.innerWidth / window.innerHeight, 0.1, 100);
-      camera.position.z = window.innerWidth < 768 ? 14 : 11.5;
-
-      // Окружение через CanvasTexture
-      const envCanvas = document.createElement('canvas');
-      envCanvas.width = envCanvas.height = 1024;
-      const ctx = envCanvas.getContext('2d');
-      const grad = ctx.createRadialGradient(512, 512, 0, 512, 512, 512);
-      grad.addColorStop(0, '#ffffff');
-      grad.addColorStop(0.2, '#aaffff');
-      grad.addColorStop(0.5, '#ff88ff');
-      grad.addColorStop(0.8, '#88aaff');
-      grad.addColorStop(1, '#000814');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, 1024, 1024);
-
-      const envTexture = new THREE.CanvasTexture(envCanvas);
-      if (THREE.EquirectangularReflectionMapping !== undefined) {
-        envTexture.mapping = THREE.EquirectangularReflectionMapping;
-      }
-      scene.environment = envTexture;
-      scene.background = new THREE.Color(0x000000);
-
-      // Призма
-      const size = Math.min(window.innerWidth, window.innerHeight) * 0.52 / 100; // Убрал лишнее деление
-      const geometry = new THREE.TetrahedronGeometry(size, 0);
-
-      // MeshPhysicalMaterial с fallback на MeshStandardMaterial
-      let material;
-      if (typeof THREE.MeshPhysicalMaterial !== 'undefined') {
-        material = new THREE.MeshPhysicalMaterial({
-          color: 0xffffff,
-          metalness: 0,
-          roughness: 0,
-          transmission: 0.99,
-          thickness: 6.5,
-          ior: 1.5,
-          clearcoat: 1.0,
-          clearcoatRoughness: 0,
-          envMapIntensity: 25,
-          specularIntensity: 4,
-          emissive: new THREE.Color(0x0088ff),
-          emissiveIntensity: 0.9
+      try {
+        const renderer = new THREE.WebGLRenderer({
+          canvas,
+          antialias: true,
+          alpha: true,
+          powerPreference: "high-performance"
         });
-      } else {
-        material = new THREE.MeshStandardMaterial({
-          color: 0xffffff,
-          metalness: 0,
-          roughness: 0,
-          emissive: new THREE.Color(0x0088ff),
-          emissiveIntensity: 0.9
-        });
-      }
 
-      const prism = new THREE.Mesh(geometry, material);
-      scene.add(prism);
-
-      // Цветные источники света
-      const colors = [0x00ffff, 0xff0088, 0x88ff44];
-      colors.forEach((c, i) => {
-        const light = new THREE.PointLight(c, 35, 100);
-        light.position.set(
-          Math.sin(i * 2.4) * 24,
-          Math.cos(i * 2.4) * 14,
-          18
-        );
-        scene.add(light);
-      });
-
-      // Пасхалка: 3 клика по экрану
-      let taps = 0;
-      canvas.addEventListener('click', () => {
-        if (++taps === 3) {
-          const easter = document.getElementById('easter');
-          easter.classList.add('show');
-          taps = 0;
-          setTimeout(() => easter.classList.remove('show'), 3200);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        
+        // Совместимость с r181+: используем свойства, которые точно есть
+        if (renderer.toneMapping !== undefined) {
+          renderer.toneMapping = THREE.ACESFilmicToneMapping || THREE.ReinhardToneMapping || THREE.LinearToneMapping;
         }
-      });
+        if (renderer.toneMappingExposure !== undefined) {
+          renderer.toneMappingExposure = 1.8;
+        }
+        if (renderer.outputColorSpace !== undefined) {
+          renderer.outputColorSpace = THREE.SRGBColorSpace;
+        }
 
-      // Анимация
-      const clock = new THREE.Clock();
-      function animate() {
-        requestAnimationFrame(animate);
-        const t = clock.getElapsedTime();
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(56, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.z = window.innerWidth < 768 ? 14 : 11.5;
 
-        prism.rotation.y = t * 0.32;
-        prism.rotation.x = t * 0.19;
+        // Окружение через CanvasTexture
+        const envCanvas = document.createElement('canvas');
+        envCanvas.width = envCanvas.height = 1024;
+        const ctx = envCanvas.getContext('2d');
+        const grad = ctx.createRadialGradient(512, 512, 0, 512, 512, 512);
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.2, '#aaffff');
+        grad.addColorStop(0.5, '#ff88ff');
+        grad.addColorStop(0.8, '#88aaff');
+        grad.addColorStop(1, '#000814');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 1024, 1024);
 
-        renderer.render(scene, camera);
+        const envTexture = new THREE.CanvasTexture(envCanvas);
+        if (THREE.EquirectangularReflectionMapping !== undefined) {
+          envTexture.mapping = THREE.EquirectangularReflectionMapping;
+        }
+        scene.environment = envTexture;
+        scene.background = new THREE.Color(0x000000);
+
+        // Призма
+        const size = Math.min(window.innerWidth, window.innerHeight) * 0.52 / 100;
+        const geometry = new THREE.TetrahedronGeometry(size, 0);
+
+        // MeshPhysicalMaterial с fallback на MeshStandardMaterial
+        let material;
+        if (typeof THREE.MeshPhysicalMaterial !== 'undefined') {
+          material = new THREE.MeshPhysicalMaterial({
+            color: 0xffffff,
+            metalness: 0,
+            roughness: 0,
+            transmission: 0.99,
+            thickness: 6.5,
+            ior: 1.5,
+            clearcoat: 1.0,
+            clearcoatRoughness: 0,
+            envMapIntensity: 25,
+            specularIntensity: 4,
+            emissive: new THREE.Color(0x0088ff),
+            emissiveIntensity: 0.9
+          });
+        } else {
+          material = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            metalness: 0,
+            roughness: 0,
+            emissive: new THREE.Color(0x0088ff),
+            emissiveIntensity: 0.9
+          });
+        }
+
+        const prism = new THREE.Mesh(geometry, material);
+        scene.add(prism);
+
+        // Цветные источники света
+        const colors = [0x00ffff, 0xff0088, 0x88ff44];
+        colors.forEach((c, i) => {
+          const light = new THREE.PointLight(c, 35, 100);
+          light.position.set(
+            Math.sin(i * 2.4) * 24,
+            Math.cos(i * 2.4) * 14,
+            18
+          );
+          scene.add(light);
+        });
+
+        // Пасхалка: 3 клика по экрану
+        let taps = 0;
+        canvas.addEventListener('click', () => {
+          if (++taps === 3) {
+            const easter = document.getElementById('easter');
+            easter.classList.add('show');
+            taps = 0;
+            setTimeout(() => easter.classList.remove('show'), 3200);
+          }
+        });
+
+        // Анимация
+        const clock = new THREE.Clock();
+        function animate() {
+          requestAnimationFrame(animate);
+          const t = clock.getElapsedTime();
+
+          prism.rotation.y = t * 0.32;
+          prism.rotation.x = t * 0.19;
+
+          renderer.render(scene, camera);
+        }
+        animate();
+
+        // Адаптация под размер экрана
+        let currentSize = size;
+        window.addEventListener('resize', () => {
+          const w = window.innerWidth;
+          const h = window.innerHeight;
+
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+          renderer.setSize(w, h);
+          camera.position.z = w < 768 ? 14 : 11.5;
+
+          const newSize = Math.min(w, h) * 0.52 / 100;
+          prism.scale.setScalar(newSize / currentSize);
+          currentSize = newSize;
+        });
+
+      } catch (error) {
+        console.error('Ошибка при инициализации 3D:', error);
+        showError();
       }
-      animate();
-
-      // Адаптация под размер экрана
-      let currentSize = size;
-      window.addEventListener('resize', () => {
-        const w = window.innerWidth;
-        const h = window.innerHeight;
-
-        camera.aspect = w / h;
-        camera.updateProjectionMatrix();
-        renderer.setSize(w, h);
-        camera.position.z = w < 768 ? 14 : 11.5;
-
-        const newSize = Math.min(w, h) * 0.52 / 100;
-        prism.scale.setScalar(newSize / currentSize);
-        currentSize = newSize;
-      });
     }
+
+    // Начинаем загрузку Three.js
+    window.addEventListener('DOMContentLoaded', loadThreeJs);
+
+    // Fallback: если через 10 секунд Three.js не загрузился
+    setTimeout(() => {
+      if (!isThreeLoaded && typeof THREE === 'undefined') {
+        console.warn('Таймаут загрузки Three.js');
+        if (currentCDNIndex < threeJsCDNs.length) {
+          // Пробуем продолжить загрузку
+          loadThreeJs();
+        }
+      }
+    }, 10000);
+
   </script>
 </body>
 </html>
